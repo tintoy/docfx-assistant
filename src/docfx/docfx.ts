@@ -45,6 +45,11 @@ export async function getAllTopics(projectFile: string): Promise<TopicMetadata[]
         }
     }
 
+    // Sorted by UID.
+    topicMetadata.sort(
+        (metadata1, metadata2) => metadata1.uid.localeCompare(metadata2.uid)
+    );
+
     return topicMetadata;
 }
 

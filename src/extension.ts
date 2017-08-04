@@ -3,11 +3,10 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 
-import { TopicMetadata, getAllTopics } from './docfx/docfx';
+import { TopicMetadata } from './docfx/docfx';
+import { MetadataCache } from "./metadata-cache";
 
-let docfxProjectFile: string;
-let topicMetadata: TopicMetadata[];
-let topicQuickPickItems: vscode.QuickPickItem[];
+const topicMetadataCache = new MetadataCache();
 
 /**
  * Called when the extension is activated.
@@ -27,11 +26,9 @@ export function activate(context: vscode.ExtensionContext) {
  * Handle the docfx.refreshTopicUIDs command.
  */
 async function handleRefreshTopicUIDs() {
-    docfxProjectFile = null;
-    topicMetadata = null;
-    topicQuickPickItems = null;
+    topicMetadataCache.flush();
 
-    await scanDocfxProject();
+    await topicMetadataCache.populate();
 }
 
 /**
@@ -41,20 +38,18 @@ async function handleInsertTopicUID() {
     if (!isSupportedLanguage())
         return;
 
-    await scanDocfxProject();
+    const topicQuickPickItems: vscode.QuickPickItem[] = await topicMetadataCache.getUIDQuickPickItems();
 
-    if (topicQuickPickItems) {
-        const selectedItem = await vscode.window.showQuickPick(topicQuickPickItems, { placeHolder: "Choose a topic UID"});
-        if (!selectedItem)
-            return;
-        
-        await vscode.window.activeTextEditor.edit(edit => {
-            edit.insert(
-                vscode.window.activeTextEditor.selection.active,
-                selectedItem.label
-            );
-        });
-    }
+    const selectedItem = await vscode.window.showQuickPick(topicQuickPickItems, { placeHolder: "Choose a topic UID"});
+    if (!selectedItem)
+        return;
+    
+    await vscode.window.activeTextEditor.edit(edit => {
+        edit.insert(
+            vscode.window.activeTextEditor.selection.active,
+            selectedItem.label
+        );
+    });
 }
 
 /**
@@ -75,41 +70,6 @@ function isSupportedLanguage(): boolean {
     }
 }
 
-/**
- * Scan and parse the DocFX project contents.
- */
-async function scanDocfxProject() {
-    if (!docfxProjectFile) {
-        const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
-
-        statusBarItem.text = "$(telescope) Scanning for DocFX project...";
-        statusBarItem.show();
-
-        const files = await vscode.workspace.findFiles('**/docfx.json', '**/node_modules/**', 1);
-        if (!files.length) {
-            vscode.window.showInformationMessage("Cannot find docfx.json in the current workspace.");
-
-            return;
-        }
-        
-        docfxProjectFile = files[0].fsPath;
-
-        statusBarItem.text = `$(telescope) Scanning DocFX project "${docfxProjectFile}"...`;
-
-        topicMetadata = await getAllTopics(docfxProjectFile);
-        topicQuickPickItems = topicMetadata.map(metadata => <vscode.QuickPickItem>{
-            label: metadata.uid,
-            detail: metadata.title
-        });
-
-        statusBarItem.text = `$(check) Found ${topicMetadata.length} topics in DocFX project.`;
-
-        setTimeout(() => {
-            statusBarItem.hide();
-            statusBarItem.dispose();
-        }, 1500);
-    }
-}
 
 /**
  * Called when the extension is deactivated.
