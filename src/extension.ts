@@ -13,7 +13,7 @@ const topicMetadataCache = new MetadataCache();
  * 
  * @param context The extension context.
  */
-export function activate(context: vscode.ExtensionContext) {
+export function activate(context: vscode.ExtensionContext) {    
     context.subscriptions.push(
         vscode.commands.registerCommand('docfx.refreshTopicUIDs', handleRefreshTopicUIDs)
     );
@@ -28,7 +28,7 @@ export function activate(context: vscode.ExtensionContext) {
 async function handleRefreshTopicUIDs() {
     topicMetadataCache.flush();
 
-    await topicMetadataCache.populate();
+    await topicMetadataCache.ensurePopulated();
 }
 
 /**
@@ -39,6 +39,8 @@ async function handleInsertTopicUID() {
         return;
 
     const topicQuickPickItems: vscode.QuickPickItem[] = await topicMetadataCache.getUIDQuickPickItems();
+    if (!topicQuickPickItems)
+        return;
 
     const selectedItem = await vscode.window.showQuickPick(topicQuickPickItems, { placeHolder: "Choose a topic UID"});
     if (!selectedItem)
@@ -75,4 +77,5 @@ function isSupportedLanguage(): boolean {
  * Called when the extension is deactivated.
  */
 export function deactivate() {
+    topicMetadataCache.flush();
 }

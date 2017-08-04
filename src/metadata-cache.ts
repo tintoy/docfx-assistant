@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
-import { TopicMetadata, getAllTopics } from "./docfx/docfx";
+import { ProgressReporter, createMessageProgressReporter } from './common/progress-reporter';
+import { TopicMetadata, getAllTopics } from './docfx/docfx';
 
 /**
  * Cache for topic metadata.
@@ -20,6 +21,7 @@ export class MetadataCache {
      */
     public flush() {
         this.topicMetadata = null;
+        this.topicMetadataByUID.clear();
     }
 
     /**
@@ -29,6 +31,9 @@ export class MetadataCache {
      * @returns A Promise that resolves to the metadata, or null if no topic was found with the specified Id.
      */
     public async getTopicMetadataByUID(uid: string): Promise<TopicMetadata | null> {
+        if (!await this.ensurePopulated())
+            return null;
+
         const topicMetadata = this.topicMetadataByUID[uid];
         if (!topicMetadata)
             return null;
@@ -39,10 +44,12 @@ export class MetadataCache {
 
     /**
      * Get VSCode QuickPick items for all known UIDs.
+     * 
+     * @returns {Promise<vscode.QuickPickItem[] | null>} A promise that resolves to the QuickPick items, or null if the cache could not be populated.
      */
-    public async getUIDQuickPickItems(): Promise<vscode.QuickPickItem[]> {
-        if (!this.topicMetadata)
-            await this.populate();
+    public async getUIDQuickPickItems(): Promise<vscode.QuickPickItem[] | null> {
+        if (!await this.ensurePopulated())
+            return null;
 
         return this.topicMetadata.map(metadata => <vscode.QuickPickItem>{
             label: metadata.uid,
@@ -51,45 +58,69 @@ export class MetadataCache {
     }
 
     /**
-     * Scan and parse the DocFX project contents.
+     * Ensure that the cache is populated.
+     * 
+     * @returns {boolean} true, if the cache was successfully populated; otherwise, false.
      */
-    public async populate(): Promise<void> {
-        let statusBarItem: vscode.StatusBarItem;
-        if (!this.docfxProjectFile || !this.topicMetadata)
-            statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
+    public async ensurePopulated(): Promise<boolean> {
+        if (this.docfxProjectFile && this.topicMetadata)
+            return true;
 
+        const progressOptions: vscode.ProgressOptions = {
+            location: vscode.ProgressLocation.Window,
+            title: 'DocFX Assistant'
+        };
+
+        return vscode.window.withProgress(progressOptions, async progress => {
+            const progressReporter: ProgressReporter<string> = createMessageProgressReporter(progress);
+
+            return await this.populate(progressReporter);
+        });
+    }
+
+    /**
+     * Scan and parse the DocFX project contents.
+     * 
+     * @param progress The ProgressReporter used to report cache-population progress.
+     * 
+     * @returns {boolean} true, if the cache was successfully populated; otherwise, false.
+     */
+    private async populate(progress: ProgressReporter<string>): Promise<boolean> {
         if (!this.docfxProjectFile) {
-            statusBarItem.text = "$(telescope) Scanning for DocFX project...";
-            statusBarItem.show();
+            progress.report("Scanning for DocFX project...");
 
             const files = await vscode.workspace.findFiles('**/docfx.json', '**/node_modules/**', 1);
             if (!files.length) {
                 vscode.window.showInformationMessage("Cannot find docfx.json in the current workspace.");
 
-                return;
+                return false;
             }
             
             this.docfxProjectFile = files[0].fsPath;
         }
 
         if (!this.topicMetadata) {
-            statusBarItem.text = `$(telescope) Scanning DocFX project "${this.docfxProjectFile}"...`;
-            statusBarItem.show();
+            try {
+                progress.report(
+                    `Scanning DocFX project "${this.docfxProjectFile}"...`
+                );
 
-            this.topicMetadata = await getAllTopics(this.docfxProjectFile);
-            for (const metadata of this.topicMetadata) {
-                this.topicMetadataByUID[metadata.uid] = metadata;
-            }
+                this.topicMetadata = await getAllTopics(this.docfxProjectFile, progress);
 
-            statusBarItem.text = `$(check) Found ${this.topicMetadata.length} topics in DocFX project.`;
+                progress.report(
+                    `$(check) Found ${this.topicMetadata.length} topics in DocFX project.`
+                );
+            } catch (scanError) {
+                console.log(scanError);
+                
+                await vscode.window.showErrorMessage(
+                    `Failed to scan DocFX project: ${scanError.message}`
+                );
+
+                return false;
+            }    
         }
 
-        if (statusBarItem) {
-            setTimeout(() => {
-                statusBarItem.hide();
-                statusBarItem.dispose();
-            }, 1500);
-        }
-        
+        return true;
     }
 }

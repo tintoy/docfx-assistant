@@ -2,13 +2,14 @@
     "name": "docfx-assistant",
     "displayName": "DocFX Assistant",
     "description": "Tools to assist with authoring content using Microsoft DocFX.",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "publisher": "tintoy",
     "license": "https://raw.githubusercontent.com/tintoy/docfx-assistant/master/LICENSE",
     "repository": {
         "type": "git",
         "url": "https://github.com/tintoy/docfx-assistant.git"
     },
+    "icon": "images/logo.png",
     "engines": {
         "vscode": "^1.14.0"
     },
@@ -17,6 +18,7 @@
     ],
     "activationEvents": [
         "workspaceContains:docfx.json",
+        "onCommand:docfx.refreshTopicUIDs",
         "onCommand:docfx.insertTopicUID"
     ],
     "main": "./out/src/extension",

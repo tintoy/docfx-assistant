@@ -1,3 +1,4 @@
+import { ProgressReporter } from '../common/progress-reporter';
 import { findFiles, readJson, readYaml, readYamlFrontMatter } from "./fs-utils";
 import * as path from 'path';
 
@@ -25,14 +26,39 @@ export interface TopicMetadata {
  * Get metadata for all topics defined in the specified project.
  * 
  * @param projectFile The full path to docfx.json.
+ * @param progressReporter An optional ProgressReporter used to report progress.
+ * 
+ * @returns { Promise<TopicMetadata[]> } A Promise that resolves to the topic metadata.
  */
-export async function getAllTopics(projectFile: string): Promise<TopicMetadata[]> {
-    const contentFiles = await getProjectContentFiles(projectFile);
+export async function getAllTopics(projectFile: string, progressReporter: ProgressReporter<string>): Promise<TopicMetadata[]> {
+    if (progressReporter)
+        progressReporter.report('Scanning for content files...');
+    
+    const contentFiles: string[] = await getProjectContentFiles(projectFile);
+
+    const totalFileCount: number = contentFiles.length;
+    let processedFileCount: number = 0;
+    function reportFileProcessed() {
+        processedFileCount++;
+
+        if (!progressReporter)
+            return;
+
+        const percentComplete = Math.ceil(
+            (processedFileCount / totalFileCount) * 100
+        );
+
+        progressReporter.report(`Processing (${percentComplete}% complete)...`);
+    }
 
     let topicMetadata: TopicMetadata[] = [];
     for (const contentFile of contentFiles) {
         if (contentFile.endsWith('.json') || contentFile.endsWith('toc.yml'))
+        {
+            reportFileProcessed();
+
             continue; // We don't care about these files.
+        }
 
         if (contentFile.endsWith('.md'))
         {
@@ -41,10 +67,14 @@ export async function getAllTopics(projectFile: string): Promise<TopicMetadata[]
                 continue;
 
             topicMetadata.push(conceptualTopicMetadata);
+
+            reportFileProcessed();
         } else if (contentFile.endsWith('.yml')) {
             const managedReferenceTopicsMetadata = await parseManagedReferenceYaml(contentFile);
             
             topicMetadata = topicMetadata.concat(managedReferenceTopicsMetadata);
+
+            reportFileProcessed();
         }
     }
 
@@ -52,6 +82,8 @@ export async function getAllTopics(projectFile: string): Promise<TopicMetadata[]
     topicMetadata.sort(
         (metadata1, metadata2) => metadata1.uid.localeCompare(metadata2.uid)
     );
+
+    progressReporter.report('Scan complete.');
 
     return topicMetadata;
 }
