@@ -4,6 +4,7 @@
     "description": "Tools to assist with authoring content using Microsoft DocFX.",
     "version": "0.0.1",
     "publisher": "tintoy",
+    "license": "https://raw.githubusercontent.com/tintoy/docfx-assistant/master/LICENSE",
     "repository": {
         "type": "git",
         "url": "https://github.com/tintoy/docfx-assistant.git"

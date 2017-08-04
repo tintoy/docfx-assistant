@@ -5,8 +5,11 @@ import * as path from 'path';
  * Represents the metadata for a DocFX topic.
  */
 export interface TopicMetadata {
-    /** The page UID. */
+    /** The topic UID. */
     uid: string;
+
+    /** The topic type. */
+    type: string;
 
     /** The page title. */
     name?: string;
@@ -67,6 +70,7 @@ async function parseMarkdownTopicMetadata(fileName: string): Promise<TopicMetada
     if (!topicMetadata.uid)
         return null;
 
+    topicMetadata.type = topicMetadata.type || "Conceptual";
     topicMetadata.name == topicMetadata.name || topicMetadata.uid;
     topicMetadata.title = topicMetadata.title || topicMetadata.name;
     topicMetadata.sourceFile = fileName;
@@ -120,6 +124,7 @@ async function parseManagedReferenceYaml(fileName: string): Promise<TopicMetadat
 
         topicMetadata.push({
             uid: managedReference.uid,
+            type: "Reference.Managed",
             name:managedReference.fullName,
             title: managedReference.nameWithType,
             sourceFile: fileName
