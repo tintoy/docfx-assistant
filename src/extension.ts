@@ -67,7 +67,7 @@ async function handleInsertTopicUID(): Promise<void> {
         return;
     
     await vscode.window.activeTextEditor.edit(edit => {
-        edit.insert(
+        edit.replace(
             vscode.window.activeTextEditor.selection.active,
             selectedItem.label
         );
