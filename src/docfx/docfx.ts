@@ -12,10 +12,10 @@ export interface TopicMetadata {
     /** The topic type. */
     type: string;
 
-    /** The page title. */
+    /** The topic name. */
     name?: string;
 
-    /** The page title. */
+    /** The topic title. */
     title?: string;
 
     /** The source file where the topic is defined. */
