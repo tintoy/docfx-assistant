@@ -7,6 +7,7 @@ import { TopicMetadata } from './docfx/docfx';
 import { MetadataCache } from "./metadata-cache";
 
 // Extension state.
+let disableAutoScan: boolean;
 let currentWorkspaceRootPath: string;
 const topicMetadataCache = new MetadataCache();
 
@@ -16,6 +17,8 @@ const topicMetadataCache = new MetadataCache();
  * @param context The extension context.
  */
 export async function activate(context: vscode.ExtensionContext) {
+    configure(context);
+
     context.subscriptions.push(
         vscode.commands.registerCommand('docfx.refreshTopicUIDs', handleRefreshTopicUIDs)
     );
@@ -24,7 +27,9 @@ export async function activate(context: vscode.ExtensionContext) {
     );
 
     // Attempt to pre-populate the cache, but don't kick up a stink if the workspace does not contain a valid project file.
-    await checkCache(true);
+    if (!disableAutoScan) {
+        await checkCache(true);
+    }
 }
 
 /**
@@ -67,6 +72,30 @@ async function handleInsertTopicUID() {
             selectedItem.label
         );
     });
+}
+
+/**
+ * Configure the extension using settings from the workspace configuration, and listen for changes.
+ * 
+ * @param context The current extension context.
+ */
+function configure(context: vscode.ExtensionContext) {
+    loadConfiguration();
+    
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeConfiguration(evt => {
+            loadConfiguration();
+        })
+    );
+}
+
+/**
+ * Load extension configuration from the workspace.
+ */
+function loadConfiguration() {
+    const configuration = vscode.workspace.getConfiguration();
+
+    disableAutoScan = configuration.get<boolean>("docfxAssistant.disableAutoScan");
 }
 
 /**

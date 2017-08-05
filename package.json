@@ -23,6 +23,18 @@
     ],
     "main": "./out/src/extension",
     "contributes": {
+        "configuration": {
+            "properties": {
+                "docfxAssistant.disableAutoScan": {
+                    "title": "Disable project auto-scan",
+                    "description": "Don't automatically scan projects when first opening them.",
+                    "type": "boolean"
+                }
+            }
+        },
+        "configurationDefaults": {
+            "docfxAssistant.disableAutoScan": false
+        },
         "commands": [
             {
                 "command": "docfx.refreshTopicUIDs",
