@@ -17,7 +17,7 @@ export function findFiles(baseDir: string, globPattern: string): Promise<string[
             cwd: baseDir,
             nodir: true
         };
-        new glob.Glob(globPattern, rawGlobOptions, (error, matches) => {
+        const globber = new glob.Glob(globPattern, rawGlobOptions, (error, matches) => {
             if (!error)
             {
                 matches = matches || []; // Matches will be null if there are no matching files.
@@ -72,7 +72,7 @@ export async function readYamlFrontMatter<T>(fileName: string): Promise<T> {
     const buffer: Buffer = await fs.readFile(fileName);
     const frontMatter = loadFront(buffer);
     
-    if (Object.getOwnPropertyNames(frontMatter).length == 1) // __content only (i.e. no front-matter)
+    if (Object.getOwnPropertyNames(frontMatter).length === 1) // __content only (i.e. no front-matter)
         return null;
 
     delete frontMatter.__content;

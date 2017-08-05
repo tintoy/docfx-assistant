@@ -28,7 +28,7 @@ export class MetadataCache {
     /**
      * Flush the metadata cache.
      */
-    public flush() {
+    public flush(): void {
         this.docfxProjectFile = null;
         this.topicMetadata = null;
         this.topicMetadataByUID.clear();
@@ -44,7 +44,7 @@ export class MetadataCache {
         if (!await this.ensurePopulated())
             return null;
 
-        const topicMetadata = this.topicMetadataByUID[uid];
+        const topicMetadata = this.topicMetadataByUID.get(uid);
         if (!topicMetadata)
             return null;
 
@@ -111,12 +111,12 @@ export class MetadataCache {
     private async populate(progress: ProgressReporter<string>, ignoreMissingProjectFile: boolean): Promise<boolean> {
         try {
             if (!this.docfxProjectFile) {
-                progress.report("Scanning for DocFX project...");
+                progress.report('Scanning for DocFX project...');
 
                 const files = await vscode.workspace.findFiles('**/docfx.json', '.git/**,**/node_modules/**', 1);
                 if (!files.length) {
                     if (!ignoreMissingProjectFile)
-                        vscode.window.showWarningMessage("Cannot find docfx.json in the current workspace.");
+                        vscode.window.showWarningMessage('Cannot find docfx.json in the current workspace.');
 
                     return false;
                 }

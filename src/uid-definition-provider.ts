@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
-import { TopicMetadata } from "./docfx/docfx";
-import { MetadataCache } from './metadata-cache'
+import { TopicMetadata } from './docfx/docfx';
+import { MetadataCache } from './metadata-cache';
 
 /**
  * The UID definition provider.
@@ -19,14 +19,14 @@ export class UidDefinitionProvider implements vscode.DefinitionProvider {
      */
     constructor(private metadataCache: MetadataCache) { }
 
-    provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): vscode.ProviderResult<vscode.Definition> {
+    public provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): vscode.ProviderResult<vscode.Definition> {
         return this.resolveDefinitionCore(document, position, token);
     }
 
-    private async resolveDefinitionCore(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken) : Promise<vscode.Definition> {
+    private async resolveDefinitionCore(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Definition> {
         const wordRange = document.getWordRangeAtPosition(position, this.uidMatcher);
         if (!wordRange) {
-            console.log("UidDefinitionProvider.resolveDefinitionCore: NOMATCH");
+            console.log('UidDefinitionProvider.resolveDefinitionCore: NOMATCH');
 
             return null;
         }

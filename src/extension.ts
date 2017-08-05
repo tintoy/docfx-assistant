@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 
 import { TopicMetadata } from './docfx/docfx';
-import { MetadataCache } from "./metadata-cache";
+import { MetadataCache } from './metadata-cache';
 
 // Extension state.
 let disableAutoScan: boolean;
@@ -16,7 +16,7 @@ const topicMetadataCache = new MetadataCache();
  * 
  * @param context The extension context.
  */
-export async function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
     configure(context);
 
     context.subscriptions.push(
@@ -35,14 +35,14 @@ export async function activate(context: vscode.ExtensionContext) {
 /**
  * Called when the extension is deactivated.
  */
-export function deactivate() {
+export function deactivate(): void {
     topicMetadataCache.flush();
 }
 
 /**
  * Handle the docfx.refreshTopicUIDs command.
  */
-async function handleRefreshTopicUIDs() {
+async function handleRefreshTopicUIDs(): Promise<void> {
     topicMetadataCache.flush();
 
     await topicMetadataCache.ensurePopulated();
@@ -51,7 +51,7 @@ async function handleRefreshTopicUIDs() {
 /**
  * Handle the docfx.insertTopicUID command.
  */
-async function handleInsertTopicUID() {
+async function handleInsertTopicUID(): Promise<void> {
     if (!isSupportedLanguage())
         return;
 
@@ -62,7 +62,7 @@ async function handleInsertTopicUID() {
     if (!topicQuickPickItems)
         return;
 
-    const selectedItem = await vscode.window.showQuickPick(topicQuickPickItems, { placeHolder: "Choose a topic UID"});
+    const selectedItem = await vscode.window.showQuickPick(topicQuickPickItems, { placeHolder: 'Choose a topic UID'});
     if (!selectedItem)
         return;
     
@@ -79,7 +79,7 @@ async function handleInsertTopicUID() {
  * 
  * @param context The current extension context.
  */
-function configure(context: vscode.ExtensionContext) {
+function configure(context: vscode.ExtensionContext): void {
     loadConfiguration();
     
     context.subscriptions.push(
@@ -92,10 +92,10 @@ function configure(context: vscode.ExtensionContext) {
 /**
  * Load extension configuration from the workspace.
  */
-function loadConfiguration() {
+function loadConfiguration(): void {
     const configuration = vscode.workspace.getConfiguration();
 
-    disableAutoScan = configuration.get<boolean>("docfxAssistant.disableAutoScan");
+    disableAutoScan = configuration.get<boolean>('docfxAssistant.disableAutoScan');
 }
 
 /**
@@ -106,8 +106,8 @@ function isSupportedLanguage(): boolean {
         return false;
 
     switch (vscode.window.activeTextEditor.document.languageId) {
-        case "markdown":
-        case "yaml": {
+        case 'markdown':
+        case 'yaml': {
             return true;
         }
         default: {

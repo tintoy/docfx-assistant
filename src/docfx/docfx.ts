@@ -1,5 +1,5 @@
 import { ProgressReporter } from '../common/progress-reporter';
-import { findFiles, readJson, readYaml, readYamlFrontMatter } from "./fs-utils";
+import { findFiles, readJson, readYaml, readYamlFrontMatter } from './fs-utils';
 import * as path from 'path';
 
 /**
@@ -37,8 +37,8 @@ export async function getAllTopics(projectFile: string, progressReporter: Progre
     const contentFiles: string[] = await getProjectContentFiles(projectFile);
 
     const totalFileCount: number = contentFiles.length;
-    let processedFileCount: number = 0;
-    function reportFileProcessed() {
+    let processedFileCount = 0;
+    function reportFileProcessed(): void {
         processedFileCount++;
 
         if (!progressReporter)
@@ -102,8 +102,8 @@ async function parseMarkdownTopicMetadata(fileName: string): Promise<TopicMetada
     if (!topicMetadata.uid)
         return null;
 
-    topicMetadata.type = topicMetadata.type || "Conceptual";
-    topicMetadata.name == topicMetadata.name || topicMetadata.uid;
+    topicMetadata.type = topicMetadata.type || 'Conceptual';
+    topicMetadata.name = topicMetadata.name || topicMetadata.uid;
     topicMetadata.title = topicMetadata.title || topicMetadata.name;
     topicMetadata.sourceFile = fileName;
 
@@ -156,7 +156,7 @@ async function parseManagedReferenceYaml(fileName: string): Promise<TopicMetadat
 
         topicMetadata.push({
             uid: managedReference.uid,
-            type: "Reference.Managed",
+            type: 'Reference.Managed',
             name:managedReference.fullName,
             title: managedReference.nameWithType,
             sourceFile: fileName
@@ -173,6 +173,8 @@ async function parseManagedReferenceYaml(fileName: string): Promise<TopicMetadat
  * @returns A promise resolving as an array of content file names.
  */
 export async function getProjectContentFiles(projectFile: string): Promise<string[]> {
+    // TODO: Define interfaces so we can eliminate this use of "any".
+    // tslint:disable-next-line no-any
     const project: any = await readJson(projectFile);
 
     let files: string[] = [];
@@ -184,7 +186,7 @@ export async function getProjectContentFiles(projectFile: string): Promise<strin
 
         const entryBaseDirectory = path.join(baseDir, contentEntry.src || '');
         const entryPatterns = contentEntry.files.filter(
-            pattern => !pattern.endsWith('.json') // Ignore Swagger files
+            (pattern: string) => !pattern.endsWith('.json') // Ignore Swagger files
         );
         if (!entryPatterns.length)
             continue;
