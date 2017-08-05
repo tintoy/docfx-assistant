@@ -1,24 +1,53 @@
-import * as vscode from 'vscode';
+import { Observer } from 'rxjs';
+import { QuickPickItem, workspace } from 'vscode';
 
-import { ProgressReporter, createMessageProgressReporter } from './common/progress-reporter';
+import { runWithProgressObserver, VSCodeProgress } from './common/progress';
 import { TopicMetadata, getAllTopics } from './docfx/docfx';
 
-import withProgress = vscode.window.withProgress;
+/**
+ * An error relating to the metadata cache.
+ */
+export class MetadataCacheError extends Error {
+    /**
+     * Should the error be displayed as a warning in the UI?
+     */
+    public isWarning: boolean;
 
-type VSCodeProgress = vscode.Progress<{ message: string }>;
+    /**
+     * Create a new MetadataCacheWarningError.
+     * 
+     * @param message The error message.
+     */
+    constructor(message: string, isWarning?: boolean) {
+        super(message);
+
+        this.isWarning = isWarning || false;
+    }
+
+    /**
+     * Create a MetadataCacheError that should be displayed as a warning in the UI.
+     * 
+     * @param message The warning message.
+     */
+    public static warning(message: string): MetadataCacheError {
+        return new MetadataCacheError(message, true);
+    }
+}
 
 /**
  * Cache for topic metadata.
  */
 export class MetadataCache {
-    private docfxProjectFile: string;
-    private topicMetadata: TopicMetadata[];
+    private docfxProjectFile: string = null;
+    private topicMetadata: TopicMetadata[]  = null;
     private topicMetadataByUID = new Map<string, TopicMetadata>();
 
     /**
-     * A Promise representing the currently-runnning cache-population operation (if any).
+     * Is the cache currently populated?
      */
-    private populatingPromise: Thenable<boolean>;
+    public get isPopulated(): boolean {
+        return this.docfxProjectFile !== null && this.topicMetadata !== null;
+    }
 
     /**
      * Create a new topic metadata cache.
@@ -57,11 +86,11 @@ export class MetadataCache {
      * 
      * @returns {Promise<vscode.QuickPickItem[] | null>} A promise that resolves to the QuickPick items, or null if the cache could not be populated.
      */
-    public async getUIDQuickPickItems(): Promise<vscode.QuickPickItem[] | null> {
+    public async getUIDQuickPickItems(): Promise<QuickPickItem[] | null> {
         if (!await this.ensurePopulated())
             return null;
 
-        return this.topicMetadata.map(metadata => <vscode.QuickPickItem>{
+        return this.topicMetadata.map(metadata => <QuickPickItem>{
             label: metadata.uid,
             detail: metadata.title
         });
@@ -78,45 +107,31 @@ export class MetadataCache {
         if (this.docfxProjectFile && this.topicMetadata)
             return true;
 
-        const progressOptions: vscode.ProgressOptions = {
-            location: vscode.ProgressLocation.Window,
-            title: 'DocFX Assistant'
-        };
-
-        if (!this.populatingPromise) {
-            this.populatingPromise = withProgress(progressOptions, async progress => {
-                return await this.populate(
-                    createMessageProgressReporter(progress),
-                    ignoreMissingProjectFile
-                );
-            })
-            .then(result => {
-                this.populatingPromise = null; // Clean up.
-
-                return result;
-            });
-        }
-            
-        return await this.populatingPromise;
+        return await runWithProgressObserver(
+            progress => this.populate(progress, ignoreMissingProjectFile)
+        );
     }
 
     /**
      * Scan and parse the DocFX project contents.
      * 
-     * @param progress The ProgressReporter used to report cache-population progress.
+     * @param progress The Observer used to report cache-population progress.
      * @param ignoreMissingProjectFile When true, then no alert will be displayed if no DocFX project file is found in the current workspace.
      * 
      * @returns {boolean} true, if the cache was successfully populated; otherwise, false.
      */
-    private async populate(progress: ProgressReporter<string>, ignoreMissingProjectFile: boolean): Promise<boolean> {
+    private async populate(progress: Observer<string>, ignoreMissingProjectFile: boolean): Promise<boolean> {
         try {
             if (!this.docfxProjectFile) {
-                progress.report('Scanning for DocFX project...');
+                progress.next('Scanning for DocFX project...');
 
-                const files = await vscode.workspace.findFiles('**/docfx.json', '.git/**,**/node_modules/**', 1);
+                const files = await workspace.findFiles('**/docfx.json', '.git/**,**/node_modules/**', 1);
                 if (!files.length) {
                     if (!ignoreMissingProjectFile)
-                        vscode.window.showWarningMessage('Cannot find docfx.json in the current workspace.');
+                        progress.error(
+                            MetadataCacheError.warning('Cannot find docfx.json in the current workspace.')
+                        );
+                        //vscode.window.showWarningMessage('Cannot find docfx.json in the current workspace.');
 
                     return false;
                 }
@@ -125,22 +140,20 @@ export class MetadataCache {
             }
 
             if (!this.topicMetadata) {
-                progress.report(
+                progress.next(
                     `Scanning DocFX project "${this.docfxProjectFile}"...`
                 );
 
                 this.topicMetadata = await getAllTopics(this.docfxProjectFile, progress);
 
-                progress.report(
+                progress.next(
                     `$(check) Found ${this.topicMetadata.length} topics in DocFX project.`
                 );
             }
         } catch (scanError) {
             console.log(scanError);
 
-            await vscode.window.showErrorMessage(
-                `Failed to scan DocFX project: ${scanError.message}`
-            );
+            progress.error(scanError);
 
             return false;
         }

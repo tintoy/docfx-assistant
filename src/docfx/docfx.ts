@@ -1,4 +1,5 @@
-import { ProgressReporter } from '../common/progress-reporter';
+import { Observer } from 'rxjs';
+
 import { findFiles, readJson, readYaml, readYamlFrontMatter } from './fs-utils';
 import * as path from 'path';
 
@@ -26,13 +27,12 @@ export interface TopicMetadata {
  * Get metadata for all topics defined in the specified project.
  * 
  * @param projectFile The full path to docfx.json.
- * @param progressReporter An optional ProgressReporter used to report progress.
+ * @param progress An optional ProgressReporter used to report progress.
  * 
  * @returns { Promise<TopicMetadata[]> } A Promise that resolves to the topic metadata.
  */
-export async function getAllTopics(projectFile: string, progressReporter: ProgressReporter<string>): Promise<TopicMetadata[]> {
-    if (progressReporter)
-        progressReporter.report('Scanning for content files...');
+export async function getAllTopics(projectFile: string, progress: Observer<string>): Promise<TopicMetadata[]> {
+    progress.next('Scanning for content files...');
     
     const contentFiles: string[] = await getProjectContentFiles(projectFile);
 
@@ -41,14 +41,14 @@ export async function getAllTopics(projectFile: string, progressReporter: Progre
     function reportFileProcessed(): void {
         processedFileCount++;
 
-        if (!progressReporter)
+        if (!progress)
             return;
 
         const percentComplete = Math.ceil(
             (processedFileCount / totalFileCount) * 100
         );
 
-        progressReporter.report(`Processing (${percentComplete}% complete)...`);
+        progress.next(`Processing (${percentComplete}% complete)...`);
     }
 
     let topicMetadata: TopicMetadata[] = [];
@@ -83,7 +83,7 @@ export async function getAllTopics(projectFile: string, progressReporter: Progre
         (metadata1, metadata2) => metadata1.uid.localeCompare(metadata2.uid)
     );
 
-    progressReporter.report('Scan complete.');
+    progress.next('Scan complete.');
 
     return topicMetadata;
 }
