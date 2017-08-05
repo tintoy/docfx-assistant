@@ -9,7 +9,7 @@ import { MetadataCache } from './metadata-cache';
 // Extension state.
 let disableAutoScan: boolean;
 let currentWorkspaceRootPath: string;
-const topicMetadataCache = new MetadataCache();
+let topicMetadataCache: MetadataCache;
 
 /**
  * Called when the extension is activated.
@@ -18,6 +18,8 @@ const topicMetadataCache = new MetadataCache();
  */
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     configure(context);
+    
+    topicMetadataCache = new MetadataCache(context.workspaceState);
 
     context.subscriptions.push(
         vscode.commands.registerCommand('docfx.refreshTopicUIDs', handleRefreshTopicUIDs)
@@ -37,6 +39,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
  */
 export function deactivate(): void {
     topicMetadataCache.flush();
+    topicMetadataCache = null;
 }
 
 /**

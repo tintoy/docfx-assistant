@@ -1,5 +1,6 @@
+import * as fs from 'mz/fs';
 import { Observer } from 'rxjs';
-import { QuickPickItem, workspace } from 'vscode';
+import * as vscode from 'vscode';
 
 import { runWithProgressObserver, VSCodeProgress } from './common/progress';
 import { TopicMetadata, getAllTopics } from './docfx/docfx';
@@ -52,7 +53,7 @@ export class MetadataCache {
     /**
      * Create a new topic metadata cache.
      */
-    constructor() { }
+    constructor(private workspaceState: vscode.Memento) { }
 
     /**
      * Flush the metadata cache.
@@ -86,11 +87,11 @@ export class MetadataCache {
      * 
      * @returns {Promise<vscode.QuickPickItem[] | null>} A promise that resolves to the QuickPick items, or null if the cache could not be populated.
      */
-    public async getUIDQuickPickItems(): Promise<QuickPickItem[] | null> {
+    public async getUIDQuickPickItems(): Promise<vscode.QuickPickItem[] | null> {
         if (!await this.ensurePopulated())
             return null;
 
-        return this.topicMetadata.map(metadata => <QuickPickItem>{
+        return this.topicMetadata.map(metadata => <vscode.QuickPickItem>{
             label: metadata.uid,
             detail: metadata.title
         });
@@ -123,20 +124,9 @@ export class MetadataCache {
     private async populate(progress: Observer<string>, ignoreMissingProjectFile: boolean): Promise<boolean> {
         try {
             if (!this.docfxProjectFile) {
-                progress.next('Scanning for DocFX project...');
-
-                const files = await workspace.findFiles('**/docfx.json', '.git/**,**/node_modules/**', 1);
-                if (!files.length) {
-                    if (!ignoreMissingProjectFile)
-                        progress.error(
-                            MetadataCacheError.warning('Cannot find docfx.json in the current workspace.')
-                        );
-                        //vscode.window.showWarningMessage('Cannot find docfx.json in the current workspace.');
-
+                this.docfxProjectFile = await this.findDocFXProjectFile(progress, ignoreMissingProjectFile);
+                if (!this.docfxProjectFile)
                     return false;
-                }
-
-                this.docfxProjectFile = files[0].fsPath;
             }
 
             if (!this.topicMetadata) {
@@ -159,5 +149,34 @@ export class MetadataCache {
         }
 
         return true;
+    }
+
+    /**
+     * Find the first DocFX project file (if any) in the current workspace.
+     * 
+     * @param progress An Observable<string> used to report progress.
+     * @param ignoreMissingProjectFile When true, then no alert will be displayed if no DocFX project file is found in the current workspace.
+     */
+    private async findDocFXProjectFile(progress: Observer<string>, ignoreMissingProjectFile: boolean): Promise<string | null> {
+        const cachedProjectFile = this.workspaceState.get<string>('docfxAssistant.projectFile');
+        if (cachedProjectFile && await fs.exists(cachedProjectFile)) {
+            return cachedProjectFile;
+        }
+        
+        const files = await vscode.workspace.findFiles('**/docfx.json', '.git/**,**/node_modules/**', 1);
+        if (!files.length) {
+            if (!ignoreMissingProjectFile) {
+                progress.error(
+                    MetadataCacheError.warning('Cannot find docfx.json in the current workspace.')
+                );
+            }
+
+            return null;
+        }
+
+        const projectFile = files[0].fsPath;
+        await this.workspaceState.update('docfxAssistant.projectFile', projectFile);
+
+        return projectFile;
     }
 }
