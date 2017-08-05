@@ -5,6 +5,13 @@
 import * as vscode from 'vscode';
 
 /**
+ * A dummy ProgressReporter that discards progress messages.
+ */
+export const dummyProgressReporter: ProgressReporter<string> = {
+    report: function(message: string) {}
+};
+
+/**
  * A mechanism for reporting progress.
  */
 export interface ProgressReporter<T> {
