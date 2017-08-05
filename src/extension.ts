@@ -6,6 +6,9 @@ import * as vscode from 'vscode';
 import { TopicMetadata } from './docfx/docfx';
 import { MetadataCache } from "./metadata-cache";
 
+// Extension state.
+let disableAutoScan: boolean;
+let currentWorkspaceRootPath: string;
 const topicMetadataCache = new MetadataCache();
 
 /**
@@ -13,13 +16,27 @@ const topicMetadataCache = new MetadataCache();
  * 
  * @param context The extension context.
  */
-export function activate(context: vscode.ExtensionContext) {    
+export async function activate(context: vscode.ExtensionContext) {
+    configure(context);
+
     context.subscriptions.push(
         vscode.commands.registerCommand('docfx.refreshTopicUIDs', handleRefreshTopicUIDs)
     );
     context.subscriptions.push(
         vscode.commands.registerCommand('docfx.insertTopicUID', handleInsertTopicUID)
     );
+
+    // Attempt to pre-populate the cache, but don't kick up a stink if the workspace does not contain a valid project file.
+    if (!disableAutoScan) {
+        await checkCache(true);
+    }
+}
+
+/**
+ * Called when the extension is deactivated.
+ */
+export function deactivate() {
+    topicMetadataCache.flush();
 }
 
 /**
@@ -38,6 +55,9 @@ async function handleInsertTopicUID() {
     if (!isSupportedLanguage())
         return;
 
+    if (!await checkCache())
+        return;
+
     const topicQuickPickItems: vscode.QuickPickItem[] = await topicMetadataCache.getUIDQuickPickItems();
     if (!topicQuickPickItems)
         return;
@@ -52,6 +72,30 @@ async function handleInsertTopicUID() {
             selectedItem.label
         );
     });
+}
+
+/**
+ * Configure the extension using settings from the workspace configuration, and listen for changes.
+ * 
+ * @param context The current extension context.
+ */
+function configure(context: vscode.ExtensionContext) {
+    loadConfiguration();
+    
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeConfiguration(evt => {
+            loadConfiguration();
+        })
+    );
+}
+
+/**
+ * Load extension configuration from the workspace.
+ */
+function loadConfiguration() {
+    const configuration = vscode.workspace.getConfiguration();
+
+    disableAutoScan = configuration.get<boolean>("docfxAssistant.disableAutoScan");
 }
 
 /**
@@ -72,10 +116,15 @@ function isSupportedLanguage(): boolean {
     }
 }
 
-
 /**
- * Called when the extension is deactivated.
+ * Check if the cache needs to be invalidated (because the workspace's root path has changed).
  */
-export function deactivate() {
-    topicMetadataCache.flush();
+async function checkCache(ignoreMissingProjectFile?: boolean): Promise<boolean> {
+    if (vscode.workspace.rootPath !== currentWorkspaceRootPath) {
+        topicMetadataCache.flush();
+
+        currentWorkspaceRootPath = vscode.workspace.rootPath;
+    }
+
+    return await topicMetadataCache.ensurePopulated(ignoreMissingProjectFile);
 }

@@ -2,9 +2,9 @@
     "name": "docfx-assistant",
     "displayName": "DocFX Assistant",
     "description": "Tools to assist with authoring content using Microsoft DocFX.",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "publisher": "tintoy",
-    "license": "https://raw.githubusercontent.com/tintoy/docfx-assistant/master/LICENSE",
+    "license": "MIT",
     "repository": {
         "type": "git",
         "url": "https://github.com/tintoy/docfx-assistant.git"
@@ -23,6 +23,18 @@
     ],
     "main": "./out/src/extension",
     "contributes": {
+        "configuration": {
+            "properties": {
+                "docfxAssistant.disableAutoScan": {
+                    "title": "Disable project auto-scan",
+                    "description": "Don't automatically scan projects when first opening them.",
+                    "type": "boolean"
+                }
+            }
+        },
+        "configurationDefaults": {
+            "docfxAssistant.disableAutoScan": false
+        },
         "commands": [
             {
                 "command": "docfx.refreshTopicUIDs",

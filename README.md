@@ -15,9 +15,9 @@ Since this extension is not available from the VS gallery yet, simply [download]
 
 ## Known issues
 
-Project scanning is on-demand, and not automatically re-triggered when files change.
+Unless configured otherwise, the extension will automatically start scanning and updating in the background as soon as it starts (or you open a workspace with `docfx.json` in the root directory).
 
-**Note**: In a future release, the extension will automatically start scanning and updating in the background as soon as it starts (or you open a workspace with `docfx.json` in the root directory).
+It does not automatically scan new / modified files, but will rescan if you open different folder as the workspace root (a future release will also watch for file changes and update acordingly).
 
 Additionally, the design of this extension is a little quick-and-dirty; it works well, but the internals are a little-too-tightly coupled to the VSCode API for comfort. There are no tests either, yet.
 
