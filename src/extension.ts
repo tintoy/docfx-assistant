@@ -3,7 +3,7 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 
-import { TopicMetadata } from './docfx/docfx';
+import { TopicMetadata, TopicType } from './docfx/docfx';
 import { MetadataCache } from './metadata-cache';
 
 // Extension state.
@@ -25,7 +25,39 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         vscode.commands.registerCommand('docfx.refreshTopicUIDs', handleRefreshTopicUIDs)
     );
     context.subscriptions.push(
-        vscode.commands.registerCommand('docfx.insertTopicUID', handleInsertTopicUID)
+        vscode.commands.registerCommand('docfx.insertAnyTopicUID', async () => {
+            await handleInsertTopicUID();
+        })
+    );
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docfx.insertConceptualTopicUID', async () => {
+            await handleInsertTopicUID(TopicType.Conceptual);
+        })
+    );
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docfx.insertNamespaceTopicUID', async () => {
+            await handleInsertTopicUID(TopicType.Namespace);
+        })
+    );
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docfx.insertTypeTopicUID', async () => {
+            await handleInsertTopicUID(TopicType.Type);
+        })
+    );
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docfx.insertPropertyTopicUID', async () => {
+            await handleInsertTopicUID(TopicType.Property);
+        })
+    );
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docfx.insertMethodTopicUID', async () => {
+            await handleInsertTopicUID(TopicType.Method);
+        })
+    );
+    context.subscriptions.push(
+        vscode.commands.registerCommand('docfx.insertPowerShellCmdletTopicUID', async () => {
+            await handleInsertTopicUID(TopicType.PowerShellCmdlet);
+        })
     );
 
     // Attempt to pre-populate the cache, but don't kick up a stink if the workspace does not contain a valid project file.
@@ -54,18 +86,21 @@ async function handleRefreshTopicUIDs(): Promise<void> {
 /**
  * Handle the docfx.insertTopicUID command.
  */
-async function handleInsertTopicUID(): Promise<void> {
+async function handleInsertTopicUID(topicType?: TopicType): Promise<void> {
     if (!isSupportedLanguage())
         return;
 
     if (!await checkCache())
         return;
 
-    const topicQuickPickItems: vscode.QuickPickItem[] = await topicMetadataCache.getUIDQuickPickItems();
+    const topicQuickPickItems: vscode.QuickPickItem[] = await topicMetadataCache.getUIDQuickPickItems(topicType);
     if (!topicQuickPickItems)
         return;
 
-    const selectedItem = await vscode.window.showQuickPick(topicQuickPickItems, { placeHolder: 'Choose a topic UID'});
+    const placeHolder = topicType ? `Choose a ${TopicType[topicType]} topic UID` : 'Choose a topic UID';
+    const selectedItem = await vscode.window.showQuickPick(topicQuickPickItems, {
+        placeHolder: placeHolder
+    });
     if (!selectedItem)
         return;
     

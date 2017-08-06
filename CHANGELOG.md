@@ -15,3 +15,7 @@
 ## v0.0.4
 
 * Automatically scan project files on extension startup (unless configured not to).
+
+## v0.0.5
+
+* Support filtering by type.

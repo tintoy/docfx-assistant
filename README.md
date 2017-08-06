@@ -6,8 +6,18 @@ An extension for VS Code that provides tools for authoring content using Microso
 
 ## Usage
 
-When your workspace contains a DocFX project, press `ctrl+shift+alt+u` to bring up a pick-list of available topic UIDs.
-The first time you do this, the extension will scan your DocFX project to find all available topics. To refresh the list of available topics, use the "DocFX: Refresh topic UIDs" command.
+When your workspace contains a DocFX project, press one of the following key combinations to bring up a pick-list of available topic UIDs:
+
+* `ctrl+shift+alt+u a`: Any topic
+* `ctrl+shift+alt+u c`: Conceptual topics
+* `ctrl+shift+alt+u n`: Namespace topics
+* `ctrl+shift+alt+u t`: Type (class, struct, interface) topics
+* `ctrl+shift+alt+u p`: Property topics
+* `ctrl+shift+alt+u m`: Method topics
+
+These commands are also available from the command pallette with the prefix "DocFX:".
+
+To refresh the list of available topics, use the "DocFX: Refresh topic UIDs" command.
 
 ## Installation
 

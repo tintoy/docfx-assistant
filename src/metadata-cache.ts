@@ -3,37 +3,7 @@ import { Observer } from 'rxjs';
 import * as vscode from 'vscode';
 
 import { runWithProgressObserver, VSCodeProgress } from './common/progress';
-import { TopicMetadata, getAllTopics } from './docfx/docfx';
-
-/**
- * An error relating to the metadata cache.
- */
-export class MetadataCacheError extends Error {
-    /**
-     * Should the error be displayed as a warning in the UI?
-     */
-    public isWarning: boolean;
-
-    /**
-     * Create a new MetadataCacheWarningError.
-     * 
-     * @param message The error message.
-     */
-    constructor(message: string, isWarning?: boolean) {
-        super(message);
-
-        this.isWarning = isWarning || false;
-    }
-
-    /**
-     * Create a MetadataCacheError that should be displayed as a warning in the UI.
-     * 
-     * @param message The warning message.
-     */
-    public static warning(message: string): MetadataCacheError {
-        return new MetadataCacheError(message, true);
-    }
-}
+import { TopicMetadata, TopicType, getAllTopics } from './docfx/docfx';
 
 /**
  * Cache for topic metadata.
@@ -85,15 +55,25 @@ export class MetadataCache {
     /**
      * Get VSCode QuickPick items for all known UIDs.
      * 
+     * @param topicType An optional topic type used to filter the items.
+     * 
      * @returns {Promise<vscode.QuickPickItem[] | null>} A promise that resolves to the QuickPick items, or null if the cache could not be populated.
      */
-    public async getUIDQuickPickItems(): Promise<vscode.QuickPickItem[] | null> {
+    public async getUIDQuickPickItems(topicType?: TopicType): Promise<vscode.QuickPickItem[] | null> {
         if (!await this.ensurePopulated())
             return null;
 
-        return this.topicMetadata.map(metadata => <vscode.QuickPickItem>{
+        let topicMetadata = this.topicMetadata;
+        if (topicType) {
+            topicMetadata = topicMetadata.filter(
+                metadata => metadata.detailedType === topicType
+            );
+        }
+
+        return topicMetadata.map(metadata => <vscode.QuickPickItem>{
             label: metadata.uid,
-            detail: metadata.title
+            detail: metadata.title,
+            description: TopicType[metadata.detailedType]
         });
     }
 
@@ -178,5 +158,35 @@ export class MetadataCache {
         await this.workspaceState.update('docfxAssistant.projectFile', projectFile);
 
         return projectFile;
+    }
+}
+
+/**
+ * An error relating to the metadata cache.
+ */
+export class MetadataCacheError extends Error {
+    /**
+     * Should the error be displayed as a warning in the UI?
+     */
+    public isWarning: boolean;
+
+    /**
+     * Create a new MetadataCacheWarningError.
+     * 
+     * @param message The error message.
+     */
+    constructor(message: string, isWarning?: boolean) {
+        super(message);
+
+        this.isWarning = isWarning || false;
+    }
+
+    /**
+     * Create a MetadataCacheError that should be displayed as a warning in the UI.
+     * 
+     * @param message The warning message.
+     */
+    public static warning(message: string): MetadataCacheError {
+        return new MetadataCacheError(message, true);
     }
 }

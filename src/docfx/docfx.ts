@@ -13,14 +13,46 @@ export interface TopicMetadata {
     /** The topic type. */
     type: string;
 
+    /** The source file where the topic is defined. */
+    sourceFile: string;
+
     /** The topic name. */
     name?: string;
 
     /** The topic title. */
     title?: string;
 
-    /** The source file where the topic is defined. */
-    sourceFile: string;
+    /** The member type (for managed reference topics). */
+    memberType?: string;
+
+    /** The topic's detailed sub-type. */
+    detailedType?: TopicType;
+}
+
+/**
+ * Well-known topic types used to filter the topic quick-pick list.
+ */
+export enum TopicType {
+    /** A conceptual topic. */
+    Conceptual = 1,
+
+    /** A namespace topic. */
+    Namespace = 2,
+
+    /** A type (e.g. class, enum, etc) topic. */
+    Type = 3,
+
+    /** A property topic. */
+    Property = 4,
+
+    /** A method topic. */
+    Method = 5,
+
+    /** A PowerShell Cmdlet topic. */
+    PowerShellCmdlet = 6,
+
+    /** Some other type of topic (not a well-known topic type). */
+    Other = 6
 }
 
 /**
@@ -78,6 +110,10 @@ export async function getAllTopics(projectFile: string, progress: Observer<strin
         }
     }
 
+    topicMetadata.forEach(metadata => {
+        metadata.detailedType = categorizeTopic(metadata);
+    });
+
     // Sorted by UID.
     topicMetadata.sort(
         (metadata1, metadata2) => metadata1.uid.localeCompare(metadata2.uid)
@@ -103,6 +139,7 @@ async function parseMarkdownTopicMetadata(fileName: string): Promise<TopicMetada
         return null;
 
     topicMetadata.type = topicMetadata.type || 'Conceptual';
+    topicMetadata.detailedType = TopicType.Conceptual;
     topicMetadata.name = topicMetadata.name || topicMetadata.uid;
     topicMetadata.title = topicMetadata.title || topicMetadata.name;
     topicMetadata.sourceFile = fileName;
@@ -135,6 +172,9 @@ interface ManagedReferenceMetadata {
 
     /** The Id of the XML doc comment from which the managed reference was extracted. */
     commentId: string;
+
+    /** The type of member represented by the reference. */
+    memberType: string;
 }
 
 /**
@@ -157,6 +197,7 @@ async function parseManagedReferenceYaml(fileName: string): Promise<TopicMetadat
         topicMetadata.push({
             uid: managedReference.uid,
             type: 'Reference.Managed',
+            memberType: managedReference.type,
             name:managedReference.fullName,
             title: managedReference.nameWithType,
             sourceFile: fileName
@@ -220,4 +261,53 @@ async function getFiles(baseDirectory: string, ...globPatterns: string[]): Promi
     }
 
     return files;
+}
+
+/**
+ * Determine the type of topic represented by the specified topic metadata.
+ * 
+ * @param metadata The topic metadata.
+ */
+function categorizeTopic(metadata: TopicMetadata): TopicType {
+    switch (metadata.type) {
+        case 'Conceptual': {
+            return TopicType.Conceptual;
+        }
+        case 'Reference.Managed': {
+            switch (metadata.memberType) {
+                case 'Namespace': {
+                    return TopicType.Namespace;
+                }
+                case 'Class':
+                case 'Struct':
+                case 'Interface':
+                case 'Delegate': {
+                    return TopicType.Type;
+                }
+                case 'Property': {
+                    return TopicType.Property;
+                }
+                case 'Method':
+                case 'Constructor': {
+                    return TopicType.Method;
+                }
+                default: {
+                    return TopicType.Other;
+                }
+            }
+        }
+        case 'Reference.PowerShell': {
+            switch (metadata.memberType) {
+                case 'Cmdlet': {
+                    return TopicType.PowerShellCmdlet;
+                }
+                default: {
+                    return TopicType.Other;
+                }
+            }
+        }
+        default: {
+            return TopicType.Other;
+        }
+    }
 }
