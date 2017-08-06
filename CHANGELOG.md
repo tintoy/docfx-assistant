@@ -18,4 +18,4 @@
 
 ## v0.0.5
 
-* Support filtering by type.
+* Support filtering topics by type.
