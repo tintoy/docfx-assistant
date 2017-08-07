@@ -4,6 +4,8 @@ An extension for VS Code that provides tools for authoring content using Microso
 
 ![DocFX Assistant in action](docs/images/DocFX-extension.gif)
 
+I'm [planning](https://github.com/tintoy/docfx-assistant/issues/6) to eventually contribute this functionality to Microsoft's [official DocFX extension](https://marketplace.visualstudio.com/items?itemName=docfxsvc.DocFXPreview), but you're welcome to use this in the meanwhile.
+
 ## Usage
 
 When your workspace contains a DocFX project, press `ctrl+shift+alt+u` to invoke the `DocFX: Insert any topic UID` command and bring up a pick-list of available topic UIDs.
