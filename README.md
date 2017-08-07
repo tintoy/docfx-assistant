@@ -2,24 +2,13 @@
 
 An extension for VS Code that provides tools for authoring content using Microsoft DocFX.
 
-![DocFX Assistant in action](docs/images/DocFX-extension.gif)
+![DocFX Assistant in action](docs/images/DocFX-in-action.gif)
 
 I'm [planning](https://github.com/tintoy/docfx-assistant/issues/6) to eventually contribute this functionality to Microsoft's [official DocFX extension](https://marketplace.visualstudio.com/items?itemName=docfxsvc.DocFXPreview), but you're welcome to use this in the meanwhile.
 
 ## Usage
 
-When your workspace contains a DocFX project, press `ctrl+shift+alt+u` to invoke the `DocFX: Insert any topic UID` command and bring up a pick-list of available topic UIDs.
-
-Note - there are several variants of this command that only show topics in a specific category:
-
-* "DocFX: Insert any topic UID" (`docfx.insertAnyTopicUID`)
-* "DocFX: Insert UID for a conceptual topic" (`docfx.insertConceptualTopicUID`)
-* "DocFX: Insert UID for a namespace topic" (`docfx.insertNamespaceTopicUID`)
-* "DocFX: Insert UID for a type topic" (`docfx.insertTypeTopicUID`)  
-  e.g. class, struct, interface
-* "DocFX: Insert UID for a property topic" (`docfx.insertPropertyTopicUID`)
-* "DocFX: Insert UID for a method topic" (`docfx.insertMethodTopicUID`)
-* "DocFX: Insert UID for a PowerShellCmdlet topic" (`docfx.insertPowerShellCmdletTopicUID`)
+When you're editing Markdown or YAML and the workspace contains a DocFX project, press `ctrl+space` to invoke the completion provider and bring up a pick-list of available topic UIDs.
 
 To refresh the list of available topics, use the "DocFX: Refresh topic UIDs" command.
 

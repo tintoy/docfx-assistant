@@ -23,3 +23,7 @@
 ## v0.0.6
 
 * Automatically track changes to topic content files in the current workspace.
+
+## v0.0.7
+
+* Implement completion provider for topic UIDs.

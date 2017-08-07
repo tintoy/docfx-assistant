@@ -104,6 +104,70 @@ export class MetadataCache {
     }
 
     /**
+     * Get VSCode QuickPick items for all known UIDs.
+     * 
+     * @param topicType An optional topic type used to filter the items.
+     * 
+     * @returns {Promise<vscode.CompletionItem[] | null>} A promise that resolves to the QuickPick items, or null if the cache could not be populated.
+     */
+    public async getUIDCompletionListItems(topicType?: TopicType): Promise<vscode.CompletionItem[] | null> {
+        if (!await this.ensurePopulated())
+            return null;
+
+        let topicMetadata = Array.from(this.topics.values());
+        if (topicType) {
+            topicMetadata = topicMetadata.filter(
+                metadata => metadata.detailedType === topicType
+            );
+        }
+
+        return topicMetadata
+            .sort(
+                (topic1, topic2) => topic1.uid.localeCompare(topic2.uid)
+            )
+            .map(metadata => {
+                let itemKind: vscode.CompletionItemKind;
+                switch (metadata.detailedType) {
+                    case TopicType.Conceptual: {
+                        itemKind = vscode.CompletionItemKind.Text;
+
+                        break;
+                    }
+                    case TopicType.Namespace: {
+                        itemKind = vscode.CompletionItemKind.Module;
+
+                        break;
+                    }
+                    case TopicType.Type: {
+                        itemKind = vscode.CompletionItemKind.Class;
+
+                        break;
+                    }
+                    case TopicType.Property: {
+                        itemKind = vscode.CompletionItemKind.Property;
+
+                        break;
+                    }
+                    case TopicType.Method: {
+                        itemKind = vscode.CompletionItemKind.Method;
+
+                        break;
+                    }
+                    default: {
+                        itemKind = vscode.CompletionItemKind.Value;
+
+                        break;
+                    }
+                }
+
+                const completionItem = new vscode.CompletionItem(metadata.uid, itemKind);
+                completionItem.detail = metadata.title + '\nLocation: ' + metadata.sourceFile;
+
+                return completionItem;
+            });
+    }
+
+    /**
      * Ensure that the cache is populated.
      * 
      * @param ignoreMissingProjectFile When true, then no alert will be displayed if no DocFX project file is found in the current workspace.

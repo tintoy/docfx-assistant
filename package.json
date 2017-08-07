@@ -2,7 +2,7 @@
     "name": "docfx-assistant",
     "displayName": "DocFX Assistant",
     "description": "Tools to assist with authoring content using Microsoft DocFX.",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "publisher": "tintoy",
     "license": "MIT",
     "repository": {
@@ -18,13 +18,9 @@
     ],
     "activationEvents": [
         "workspaceContains:docfx.json",
-        "onCommand:docfx.refreshTopicUIDs",
-        "onCommand:docfx.insertAnyTopicUID",
-        "onCommand:docfx.insertNamespaceTopicUID",
-        "onCommand:docfx.insertTypeTopicUID",
-        "onCommand:docfx.insertPropertyTopicUID",
-        "onCommand:docfx.insertMethodTopicUID",
-        "onCommand:docfx.insertPowerShellCmdletTopicUID"
+        "onLanguage:markdown",
+        "onLanguage:yaml",
+        "onCommand:docfx.refreshTopicUIDs"
     ],
     "main": "./out/src/extension",
     "contributes": {
@@ -44,36 +40,6 @@
             {
                 "command": "docfx.refreshTopicUIDs",
                 "title": "DocFX: Refresh topic UIDs"
-            },
-            {
-                "command": "docfx.insertAnyTopicUID",
-                "title": "DocFX: Insert topic UID"
-            },
-            {
-                "command": "docfx.insertNamespaceTopicUID",
-                "title": "DocFX: Insert UID for a namespace topic"
-            },
-            {
-                "command": "docfx.insertTypeTopicUID",
-                "title": "DocFX: Insert UID for a type topic"
-            },
-            {
-                "command": "docfx.insertPropertyTopicUID",
-                "title": "DocFX: Insert UID for a property topic"
-            },
-            {
-                "command": "docfx.insertMethodTopicUID",
-                "title": "DocFX: Insert UID for a method topic"
-            },
-            {
-                "command": "docfx.insertPowerShellCmdletTopicUID",
-                "title": "DocFX: Insert UID for a PowerShell Cmdlet topic"
-            }
-        ],
-        "keybindings": [
-            {
-                "key": "ctrl+shift+alt+u",
-                "command": "docfx.insertAnyTopicUID"
             }
         ]
     },
