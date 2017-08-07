@@ -53,8 +53,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 /**
  * Called when the extension is deactivated.
  */
-export function deactivate(): void {
-    topicMetadataCache.flush();
+export async function deactivate(): Promise<void> {
+    await topicMetadataCache.flush();
     topicMetadataCache = null;
 }
 
@@ -62,7 +62,7 @@ export function deactivate(): void {
  * Handle the docfx.refreshTopicUIDs command.
  */
 async function handleRefreshTopicUIDs(): Promise<void> {
-    topicMetadataCache.flush();
+    await topicMetadataCache.flush();
 
     await topicMetadataCache.ensurePopulated();
 }
@@ -114,7 +114,7 @@ function isSupportedLanguage(): boolean {
  */
 async function checkCache(ignoreMissingProjectFile?: boolean): Promise<boolean> {
     if (vscode.workspace.rootPath !== currentWorkspaceRootPath) {
-        topicMetadataCache.flush();
+        await topicMetadataCache.flush();
 
         currentWorkspaceRootPath = vscode.workspace.rootPath;
     }

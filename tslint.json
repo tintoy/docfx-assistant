@@ -81,7 +81,10 @@
       "always"
     ],
     "variable-name": [
-      true
+        true,
+        "ban-keywords",
+        "check-format",
+        "allow-leading-underscore"
     ],
     "whitespace": [
       true

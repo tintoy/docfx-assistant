@@ -8,6 +8,14 @@ import { TopicMetadata, TopicType, getAllTopics } from './docfx/docfx';
 import { TopicChange, TopicChangeType } from './change-adapter';
 
 /**
+ * Workspace state keys used by the metadata cache.
+ */
+class StateKeys {
+    /** The workspace state key representing the DocFX project file (if any) for the current workspace. */
+    public static readonly projectFile = 'docfxAssistant.projectFile';
+}
+
+/**
  * Cache for topic metadata.
  */
 export class MetadataCache {
@@ -15,6 +23,11 @@ export class MetadataCache {
     private docfxProjectFile: string = null;
     private topics: Map<string, TopicMetadata> = null;
     private topicsByContentFile: Map<string, TopicMetadata[]> = null;
+
+    /**
+     * A Promise representing the current cache-population task (if any).
+     */
+    private populatingPromise: Promise<boolean> = null;
 
     /**
      * Is the cache currently populated?
@@ -49,11 +62,16 @@ export class MetadataCache {
 
     /**
      * Flush the metadata cache.
+     * 
+     * @param clearWorkspaceState Also clear any state data persisted in workspace state?
      */
-    public flush(): void {
+    public async flush(clearWorkspaceState?: boolean): Promise<void> {
         this.docfxProjectFile = null;
         this.topics = null;
         this.topicsByContentFile = null;
+
+        if (clearWorkspaceState)
+            await this.workspaceState.update(StateKeys.projectFile, null);
     }
 
     /**
@@ -178,8 +196,15 @@ export class MetadataCache {
         if (this.docfxProjectFile && this.topics)
             return true;
 
-        return await runWithProgressObserver(
+        if (this.populatingPromise)
+            return await this.populatingPromise;
+
+        const populatingPromise = this.populatingPromise = runWithProgressObserver(
             progress => this.populate(progress, ignoreMissingProjectFile)
+        );
+
+        return await populatingPromise.then(
+            () => this.populatingPromise = null
         );
     }
 
@@ -249,7 +274,7 @@ export class MetadataCache {
      * @param ignoreMissingProjectFile When true, then no alert will be displayed if no DocFX project file is found in the current workspace.
      */
     private async findDocFXProjectFile(progress: Rx.Observer<string>, ignoreMissingProjectFile: boolean): Promise<string | null> {
-        const cachedProjectFile = this.workspaceState.get<string>('docfxAssistant.projectFile');
+        const cachedProjectFile = this.workspaceState.get<string>(StateKeys.projectFile);
         if (cachedProjectFile && await fs.exists(cachedProjectFile)) {
             return cachedProjectFile;
         }
@@ -266,7 +291,7 @@ export class MetadataCache {
         }
 
         const projectFile = files[0].fsPath;
-        await this.workspaceState.update('docfxAssistant.projectFile', projectFile);
+        await this.workspaceState.update(StateKeys.projectFile, projectFile);
 
         return projectFile;
     }
