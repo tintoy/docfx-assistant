@@ -59,7 +59,7 @@ export enum TopicType {
  * Get metadata for all topics defined in the specified project.
  * 
  * @param projectFile The full path to docfx.json.
- * @param progress An optional ProgressReporter used to report progress.
+ * @param progress A ProgressReporter used to report progress.
  * 
  * @returns { Promise<TopicMetadata[]> } A Promise that resolves to the topic metadata.
  */
@@ -83,45 +83,44 @@ export async function getAllTopics(projectFile: string, progress: Observer<strin
         progress.next(`Processing (${percentComplete}% complete)...`);
     }
 
-    let topicMetadata: TopicMetadata[] = [];
+    const topicMetadata: TopicMetadata[] = [];
     for (const contentFile of contentFiles) {
-        if (contentFile.endsWith('.json') || contentFile.endsWith('toc.yml'))
-        {
-            reportFileProcessed();
+        const contentFileTopicMetadata = await getTopics(contentFile);
+        topicMetadata.push(...contentFileTopicMetadata);
 
-            continue; // We don't care about these files.
-        }
-
-        if (contentFile.endsWith('.md'))
-        {
-            const conceptualTopicMetadata = await parseMarkdownTopicMetadata(contentFile);
-            if (!conceptualTopicMetadata)
-                continue;
-
-            topicMetadata.push(conceptualTopicMetadata);
-
-            reportFileProcessed();
-        } else if (contentFile.endsWith('.yml')) {
-            const managedReferenceTopicsMetadata = await parseManagedReferenceYaml(contentFile);
-            
-            topicMetadata = topicMetadata.concat(managedReferenceTopicsMetadata);
-
-            reportFileProcessed();
-        }
+        reportFileProcessed();
     }
 
     topicMetadata.forEach(metadata => {
         metadata.detailedType = categorizeTopic(metadata);
     });
 
-    // Sorted by UID.
-    topicMetadata.sort(
-        (metadata1, metadata2) => metadata1.uid.localeCompare(metadata2.uid)
-    );
-
     progress.next('Scan complete.');
 
     return topicMetadata;
+}
+
+/**
+ * Get metadata for the topic(s) defined in the specified content file.
+ * 
+ * @param contentFile The full path of the content file.
+ * 
+ * @returns { Promise<TopicMetadata[]> } A Promise that resolves to the topic metadata.
+ */
+export async function getTopics(contentFile: string): Promise<TopicMetadata[]> {
+    if (contentFile.endsWith('.json') || contentFile.endsWith('toc.yml'))
+        return [];
+
+    if (contentFile.endsWith('.md'))
+    {
+        const conceptualTopicMetadata = await parseMarkdownTopicMetadata(contentFile);
+        if (!conceptualTopicMetadata)
+            return [];
+
+        return [ conceptualTopicMetadata ];
+    } else if (contentFile.endsWith('.yml')) {
+        return await parseManagedReferenceYaml(contentFile);
+    }
 }
 
 /**

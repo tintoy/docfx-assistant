@@ -1,10 +1,13 @@
 'use strict';
 
+import * as fs from 'mz/fs';
 import * as path from 'path';
+import * as Rx from 'rxjs';
 import * as vscode from 'vscode';
 
 import { TopicMetadata, TopicType } from './docfx/docfx';
 import { MetadataCache } from './metadata-cache';
+import { TopicChange, TopicChangeType, observeTopicChanges } from './change-adapter';
 
 // Extension state.
 let disableAutoScan: boolean;
@@ -64,6 +67,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (!disableAutoScan) {
         await checkCache(true);
     }
+
+    const topicChanges = await observeTopicChanges(context);
+    
+    const cacheSubscription = topicChanges.subscribe(topicMetadataCache.topicChanges);
+    context.subscriptions.push(
+        new vscode.Disposable(
+            () => cacheSubscription.unsubscribe()
+        )
+    );
 }
 
 /**

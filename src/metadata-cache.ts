@@ -1,37 +1,52 @@
 import * as fs from 'mz/fs';
-import { Observer } from 'rxjs';
+import * as path from 'path';
+import * as Rx from 'rxjs';
 import * as vscode from 'vscode';
 
 import { runWithProgressObserver, VSCodeProgress } from './common/progress';
 import { TopicMetadata, TopicType, getAllTopics } from './docfx/docfx';
+import { TopicChange, TopicChangeType } from './change-adapter';
 
 /**
  * Cache for topic metadata.
  */
 export class MetadataCache {
+    private topicChangeSubject: Rx.Subject<TopicChange> = new Rx.Subject<TopicChange>();
     private docfxProjectFile: string = null;
-    private topicMetadata: TopicMetadata[]  = null;
-    private topicMetadataByUID = new Map<string, TopicMetadata>();
+    private topics: Map<string, TopicMetadata> = null;
+    private topicsByContentFile: Map<string, TopicMetadata[]> = null;
 
     /**
      * Is the cache currently populated?
      */
     public get isPopulated(): boolean {
-        return this.docfxProjectFile !== null && this.topicMetadata !== null;
+        return this.docfxProjectFile !== null && this.topics !== null && this.topicsByContentFile !== null;
+    }
+
+    /**
+     * An observer for ongoing changes to topic metadata.
+     */
+    public get topicChanges(): Rx.Observer<TopicChange> {
+        return this.topicChangeSubject;
     }
 
     /**
      * Create a new topic metadata cache.
      */
-    constructor(private workspaceState: vscode.Memento) { }
+    constructor(private workspaceState: vscode.Memento) {
+        this.topicChangeSubject.subscribe(
+            change => this.handleTopicChange(change),
+            error => console.log('Warning - error encountered by topic change observer: ' + error.message, error)
+        );
+    }
 
     /**
      * Flush the metadata cache.
      */
     public flush(): void {
         this.docfxProjectFile = null;
-        this.topicMetadata = null;
-        this.topicMetadataByUID.clear();
+        this.topics = null;
+        this.topicsByContentFile = null;
     }
 
     /**
@@ -44,7 +59,7 @@ export class MetadataCache {
         if (!await this.ensurePopulated())
             return null;
 
-        const topicMetadata = this.topicMetadataByUID.get(uid);
+        const topicMetadata = this.topics.get(uid);
         if (!topicMetadata)
             return null;
 
@@ -63,18 +78,22 @@ export class MetadataCache {
         if (!await this.ensurePopulated())
             return null;
 
-        let topicMetadata = this.topicMetadata;
+        let topicMetadata = Array.from(this.topics.values());
         if (topicType) {
             topicMetadata = topicMetadata.filter(
                 metadata => metadata.detailedType === topicType
             );
         }
 
-        return topicMetadata.map(metadata => <vscode.QuickPickItem>{
-            label: metadata.uid,
-            detail: metadata.title,
-            description: TopicType[metadata.detailedType]
-        });
+        return topicMetadata
+            .sort(
+                (topic1, topic2) => topic1.uid.localeCompare(topic2.uid)
+            )
+            .map(metadata => <vscode.QuickPickItem>{
+                label: metadata.uid,
+                detail: metadata.title,
+                description: TopicType[metadata.detailedType]
+            });
     }
 
     /**
@@ -85,7 +104,7 @@ export class MetadataCache {
      * @returns {boolean} true, if the cache was successfully populated; otherwise, false.
      */
     public async ensurePopulated(ignoreMissingProjectFile?: boolean): Promise<boolean> {
-        if (this.docfxProjectFile && this.topicMetadata)
+        if (this.docfxProjectFile && this.topics)
             return true;
 
         return await runWithProgressObserver(
@@ -96,12 +115,14 @@ export class MetadataCache {
     /**
      * Scan and parse the DocFX project contents.
      * 
+     * TODO: Remove this function entirely, so the cache is initially populated by feeding a sequence of "create" topic changes.
+     * 
      * @param progress The Observer used to report cache-population progress.
      * @param ignoreMissingProjectFile When true, then no alert will be displayed if no DocFX project file is found in the current workspace.
      * 
      * @returns {boolean} true, if the cache was successfully populated; otherwise, false.
      */
-    private async populate(progress: Observer<string>, ignoreMissingProjectFile: boolean): Promise<boolean> {
+    private async populate(progress: Rx.Observer<string>, ignoreMissingProjectFile: boolean): Promise<boolean> {
         try {
             if (!this.docfxProjectFile) {
                 this.docfxProjectFile = await this.findDocFXProjectFile(progress, ignoreMissingProjectFile);
@@ -109,15 +130,32 @@ export class MetadataCache {
                     return false;
             }
 
-            if (!this.topicMetadata) {
+            if (!this.topics) {
                 progress.next(
                     `Scanning DocFX project "${this.docfxProjectFile}"...`
                 );
 
-                this.topicMetadata = await getAllTopics(this.docfxProjectFile, progress);
+                this.topics = new Map<string, TopicMetadata>();
+                this.topicsByContentFile = new Map<string, TopicMetadata[]>();
+
+                const topicMetadata: TopicMetadata[] = await getAllTopics(this.docfxProjectFile, progress);
+                topicMetadata.forEach(topic => {
+                    if (path.isAbsolute(topic.sourceFile)) {
+                        topic.sourceFile = vscode.workspace.asRelativePath(topic.sourceFile);
+                    }
+
+                    this.topics.set(topic.uid, topic);
+
+                    let contentFileTopics: TopicMetadata[] = this.topicsByContentFile.get(topic.sourceFile);
+                    if (!contentFileTopics) {
+                        contentFileTopics = [];
+                        this.topicsByContentFile.set(topic.sourceFile, contentFileTopics);
+                    }
+                    contentFileTopics.push(topic);
+                });
 
                 progress.next(
-                    `$(check) Found ${this.topicMetadata.length} topics in DocFX project.`
+                    `$(check) Found ${this.topics.size} topics in DocFX project.`
                 );
             }
         } catch (scanError) {
@@ -134,10 +172,12 @@ export class MetadataCache {
     /**
      * Find the first DocFX project file (if any) in the current workspace.
      * 
+     * TODO: Eliminate the need for this by making the metadata cache take the project file path as a parameter.
+     * 
      * @param progress An Observable<string> used to report progress.
      * @param ignoreMissingProjectFile When true, then no alert will be displayed if no DocFX project file is found in the current workspace.
      */
-    private async findDocFXProjectFile(progress: Observer<string>, ignoreMissingProjectFile: boolean): Promise<string | null> {
+    private async findDocFXProjectFile(progress: Rx.Observer<string>, ignoreMissingProjectFile: boolean): Promise<string | null> {
         const cachedProjectFile = this.workspaceState.get<string>('docfxAssistant.projectFile');
         if (cachedProjectFile && await fs.exists(cachedProjectFile)) {
             return cachedProjectFile;
@@ -158,6 +198,59 @@ export class MetadataCache {
         await this.workspaceState.update('docfxAssistant.projectFile', projectFile);
 
         return projectFile;
+    }
+
+    /**
+     * Handle a changed topic in the current workspace.
+     * 
+     * @param change A TopicChange representing the changed topic.
+     */
+    private handleTopicChange(change: TopicChange): void {
+        switch (change.changeType)
+        {
+            case TopicChangeType.Added:
+            case TopicChangeType.Updated:
+            {
+                let contentFileTopics: TopicMetadata[] = this.topicsByContentFile.get(change.contentFile);
+                if (contentFileTopics) {
+                    contentFileTopics.forEach((topic: TopicMetadata) => {
+                        this.topics.delete(topic.uid);
+                    });
+                }
+
+                contentFileTopics = [];
+                this.topicsByContentFile.set(change.contentFile, contentFileTopics);
+
+                change.topics.forEach((topic: TopicMetadata) => {
+                    this.topics.set(topic.uid, topic);
+
+                    contentFileTopics.push(topic);
+                });
+
+                break;
+            }
+            case TopicChangeType.Removed:
+            {
+                const existingTopics: TopicMetadata[] = this.topicsByContentFile.get(change.contentFile);
+                if (existingTopics) {
+                    this.topicsByContentFile.delete(change.contentFile);
+                    
+                    existingTopics.forEach(existingTopic => {
+                        this.topics.delete(existingTopic.uid);
+                    });
+
+                    this.topicsByContentFile.delete(change.contentFile);
+                }
+                
+                break;
+            }
+            default:
+            {
+                console.log('Warning - received unexpected type of topic change notification.', change);
+
+                break;
+            }
+        }
     }
 }
 

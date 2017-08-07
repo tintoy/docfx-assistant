@@ -2,7 +2,7 @@
     "name": "docfx-assistant",
     "displayName": "DocFX Assistant",
     "description": "Tools to assist with authoring content using Microsoft DocFX.",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "publisher": "tintoy",
     "license": "MIT",
     "repository": {
@@ -72,32 +72,8 @@
         ],
         "keybindings": [
             {
-                "key": "ctrl+shift+alt+u a",
+                "key": "ctrl+shift+alt+u",
                 "command": "docfx.insertAnyTopicUID"
-            },
-            {
-                "key": "ctrl+shift+alt+u c",
-                "command": "docfx.insertConceptualTopicUID"
-            },
-            {
-                "key": "ctrl+shift+alt+u n",
-                "command": "docfx.insertNamespaceTopicUID"
-            },
-            {
-                "key": "ctrl+shift+alt+u t",
-                "command": "docfx.insertTypeTopicUID"
-            },
-            {
-                "key": "ctrl+shift+alt+u m",
-                "command": "docfx.insertMethodTopicUID"
-            },
-            {
-                "key": "ctrl+shift+alt+u p",
-                "command": "docfx.insertPropertyTopicUID"
-            },
-            {
-                "key": "ctrl+shift+alt+u s",
-                "command": "docfx.insertPowerShellCmdletTopicUID"
             }
         ]
     },

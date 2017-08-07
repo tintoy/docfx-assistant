@@ -19,3 +19,7 @@
 ## v0.0.5
 
 * Support filtering topics by type.
+
+## v0.0.6
+
+* Automatically track changes to topic content files in the current workspace.
