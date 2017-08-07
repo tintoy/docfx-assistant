@@ -31,6 +31,13 @@ export class MetadataCache {
     }
 
     /**
+     * The current project file (if any).
+     */
+    public get projectFile(): string {
+        return this.docfxProjectFile;
+    }
+
+    /**
      * Create a new topic metadata cache.
      */
     constructor(private workspaceState: vscode.Memento) {

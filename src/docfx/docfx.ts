@@ -1,6 +1,7 @@
+import { IMinimatch } from 'minimatch';
 import { Observer } from 'rxjs';
 
-import { findFiles, readJson, readYaml, readYamlFrontMatter } from './fs-utils';
+import { findFiles, readJson, readYaml, readYamlFrontMatter, createMatchers } from './fs-utils';
 import * as path from 'path';
 
 /**
@@ -204,6 +205,92 @@ async function parseManagedReferenceYaml(fileName: string): Promise<TopicMetadat
     }
 
     return topicMetadata;
+}
+
+/**
+ * Matchers for files (include / exclude).
+ */
+export class FileMatcher {
+    /** Matchers for including content files. */
+    private includeMatchers: IMinimatch[];
+
+    /** Matchers for excluding content files. */
+    private excludeMatchers: IMinimatch[];
+
+    /** The base directory for comparisons. */
+    private baseDir: string;
+
+    /**
+     * Create a new content file matcher.
+     * 
+     * @param baseDir The base directory for comparisons.
+     * @param includePatterns Matchers for including content files.
+     * @param excludePatterns 
+     */
+    constructor(baseDir: string, includePatterns: string[], excludePatterns: string[]) {
+        this.baseDir = baseDir;
+        this.includeMatchers = createMatchers(...includePatterns);
+        this.excludeMatchers = createMatchers(...excludePatterns);
+    }
+
+    /**
+     * Determine whether the specified file should be included.
+     * 
+     * @param filePath The full or relative path of the file.
+     */
+    public shouldIncludeFile(filePath: string): boolean {
+        const relativeFilePath = path.relative(this.baseDir, filePath);
+
+        for (const exclude of this.excludeMatchers) {
+            if (exclude.match(relativeFilePath))
+                return false;
+        }
+        
+        for (const include of this.includeMatchers) {
+            if (include.match(relativeFilePath)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+/**
+ * Get all content files defined in the DocFX project.
+ * 
+ * @param projectFile The full path to docfx.json.
+ * @returns A promise resolving as an array of content file names.
+ */
+export async function getProjectContentFileMatchers(projectFile: string, baseDir?: string): Promise<FileMatcher> {
+    // TODO: Define interfaces so we can eliminate this use of "any".
+    // tslint:disable-next-line no-any
+    const project: any = await readJson(projectFile);
+
+    baseDir = baseDir || path.dirname(projectFile);
+    const includePatterns: string[] = [];
+    const excludePatterns: string[] = [];
+    for (const contentEntry of project.build.content) {
+        if (!contentEntry.files)
+            continue;
+
+        const entryBaseDirectory = path.join(baseDir, contentEntry.src || '');
+
+        const entryIncludePatterns = contentEntry.files.filter(
+            (pattern: string) => !pattern.endsWith('.json') // Ignore Swagger files
+        );
+        if (!entryIncludePatterns.length)
+            continue;
+
+        const entryExcludePatterns = (contentEntry.exclude as string[] || []).filter(
+            (pattern: string) => !pattern.endsWith('.json') // Ignore Swagger files
+        );
+        
+        includePatterns.push(...entryIncludePatterns);
+        excludePatterns.push(...entryExcludePatterns);
+    }
+
+    return new FileMatcher(baseDir, includePatterns, excludePatterns);
 }
 
 /**

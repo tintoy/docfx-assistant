@@ -16,26 +16,23 @@ export function createMatchers(...patterns: string[]): IMinimatch[] {
     const matchers: IMinimatch[] = [];
 
     patterns.forEach(pattern => {
-        if (pattern === '**.') {
-            // **. -> [ *., **/*. ]
+        const patternSegments = pattern.split('/');
+        let hasUnsupportedGlobStar = false;
+        for (const segment of pattern.split('/')) {
+            if (segment.startsWith('**.')) {
+                hasUnsupportedGlobStar = true;
+
+                break;
+            }
+        }
+
+        // **. -> [ *., **/*. ]
+        if (hasUnsupportedGlobStar) {
             matchers.push(
-                new Minimatch('*.')
+                new Minimatch(pattern.replace('**.', '*.'))
             );
             matchers.push(
-                new Minimatch(
-                    path.join('**', '*.')
-                )
-            );
-        } else if (pattern.startsWith('**.')) {
-            // **.ext -> [ *.ext, **/*.ext ]
-            const restOfPattern = pattern.substring(1);
-            matchers.push(
-                new Minimatch(restOfPattern)
-            );
-            matchers.push(
-                new Minimatch(
-                    path.join('**', restOfPattern)
-                )
+                new Minimatch(pattern.replace('**.', '**/*.'))
             );
         } else {
             matchers.push(
