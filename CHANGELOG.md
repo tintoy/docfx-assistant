@@ -27,3 +27,4 @@
 ## v0.0.7
 
 * Implement completion provider for topic UIDs.
+* Replace UID quick-pick list with completion provider.

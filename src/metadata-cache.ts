@@ -75,11 +75,11 @@ export class MetadataCache {
     }
 
     /**
-     * Get VSCode QuickPick items for all known UIDs.
+     * Get VSCode QuickPick list items for all known UIDs.
      * 
      * @param topicType An optional topic type used to filter the items.
      * 
-     * @returns {Promise<vscode.QuickPickItem[] | null>} A promise that resolves to the QuickPick items, or null if the cache could not be populated.
+     * @returns {Promise<vscode.QuickPickItem[] | null>} A promise that resolves to the items, or null if the cache could not be populated.
      */
     public async getUIDQuickPickItems(topicType?: TopicType): Promise<vscode.QuickPickItem[] | null> {
         if (!await this.ensurePopulated())
@@ -104,11 +104,11 @@ export class MetadataCache {
     }
 
     /**
-     * Get VSCode QuickPick items for all known UIDs.
+     * Get VSCode completion-list items for all known UIDs.
      * 
      * @param topicType An optional topic type used to filter the items.
      * 
-     * @returns {Promise<vscode.CompletionItem[] | null>} A promise that resolves to the QuickPick items, or null if the cache could not be populated.
+     * @returns {Promise<vscode.CompletionItem[] | null>} A promise that resolves to the items, or null if the cache could not be populated.
      */
     public async getUIDCompletionListItems(topicType?: TopicType): Promise<vscode.CompletionItem[] | null> {
         if (!await this.ensurePopulated())
