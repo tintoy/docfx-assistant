@@ -1,9 +1,51 @@
 import * as yaml from 'js-yaml';
-import { loadFront } from 'yaml-front-matter';
 import * as glob from 'glob';
+import * as fs from 'mz/fs';
+import { Minimatch, IMinimatch } from 'minimatch';
 import * as path from 'path';
+import { loadFront } from 'yaml-front-matter';
 
-import { fs } from 'mz';
+/**
+ * Create Minimatch matchers for each of the specified patterns.
+ * 
+ * @param patterns The glob-style patterns.
+ * 
+ * @returns The matchers.
+ */
+export function createMatchers(...patterns: string[]): IMinimatch[] {
+    const matchers: IMinimatch[] = [];
+
+    patterns.forEach(pattern => {
+        if (pattern === '**.') {
+            // **. -> [ *., **/*. ]
+            matchers.push(
+                new Minimatch('*.')
+            );
+            matchers.push(
+                new Minimatch(
+                    path.join('**', '*.')
+                )
+            );
+        } else if (pattern.startsWith('**.')) {
+            // **.ext -> [ *.ext, **/*.ext ]
+            const restOfPattern = pattern.substring(1);
+            matchers.push(
+                new Minimatch(restOfPattern)
+            );
+            matchers.push(
+                new Minimatch(
+                    path.join('**', restOfPattern)
+                )
+            );
+        } else {
+            matchers.push(
+                new Minimatch(pattern)
+            );
+        }
+    });
+
+    return matchers;
+}
 
 /**
  * Find all files and directories matching a specific pattern.

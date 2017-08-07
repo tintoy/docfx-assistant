@@ -97,6 +97,7 @@
     "dependencies": {
         "glob": "^7.1.2",
         "js-yaml": "^3.9.1",
+        "minimatch": "^3.0.4",
         "mz": "^2.6.0",
         "rxjs": "^5.4.2",
         "yaml-front-matter": "^3.4.0"
