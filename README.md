@@ -8,7 +8,7 @@ I'm [planning](https://github.com/tintoy/docfx-assistant/issues/6) to eventually
 
 ## Usage
 
-When you're editing Markdown or YAML and the workspace contains a DocFX project, press `ctrl+space` to invoke the completion provider and bring up a pick-list of available topic UIDs.
+When you're editing Markdown or YAML and the workspace contains a DocFX project, type `@` or press `ctrl+space` to invoke the completion provider and bring up a pick-list of available topic UIDs.
 
 To refresh the list of available topics, use the "DocFX: Refresh topic UIDs" command.
 
