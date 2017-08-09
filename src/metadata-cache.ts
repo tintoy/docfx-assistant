@@ -37,6 +37,11 @@ export class MetadataCache {
         return this.docfxProjectFile !== null && this.topics !== null && this.topicsByContentFile !== null;
     }
 
+    /** The number of topics in the cache. */
+    public get topicCount(): number {
+        return this.topics.size;
+    }
+
     /**
      * An observer for ongoing changes to topic metadata.
      */
@@ -251,7 +256,7 @@ export class MetadataCache {
 
                 this.topics = new Map<string, TopicMetadata>();
                 this.topicsByContentFile = new Map<string, TopicMetadata[]>();
-                
+
                 const topicMetadata: TopicMetadata[] = [];
                 const persistedTopicCache = await this.loadTopicCache();
                 if (persistedTopicCache) {

@@ -12,7 +12,7 @@ import { UIDCompletionProvider } from './completion-provider';
 
 // Extension state.
 let disableAutoScan: boolean;
-let currentWorkspaceRootPath: string;
+let outputChannel: vscode.OutputChannel;
 let topicMetadataCache: MetadataCache;
 
 /**
@@ -21,6 +21,9 @@ let topicMetadataCache: MetadataCache;
  * @param context The extension context.
  */
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+    outputChannel = vscode.window.createOutputChannel('DocFX Assistant');
+    context.subscriptions.push(outputChannel);
+
     configure(context);
     
     topicMetadataCache = new MetadataCache(context.workspaceState);
@@ -31,9 +34,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     
     // Attempt to pre-populate the cache, but don't kick up a stink if the workspace does not contain a valid project file.
     if (!disableAutoScan) {
-        await checkCache(true);
+        outputChannel.append('Populating topic cache...\n');
+        await topicMetadataCache.ensurePopulated(true);
+        outputChannel.append(
+            `Topic cache now contains ${topicMetadataCache.topicCount} topics from "${topicMetadataCache.projectFile}".\n`
+        );
     }
 
+    outputChannel.append('Observing workspace changes...\n');
     const topicChanges = await observeTopicChanges(context);
     
     const cacheSubscription = topicChanges.subscribe(topicMetadataCache.topicChanges);
@@ -43,11 +51,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         )
     );
 
+    outputChannel.append('Workspace change observer configured.\n');
+
+    outputChannel.append('Initialising completion provider...\n');
+
     const languageSelectors = [ 'markdown', 'yaml' ];
     const completionProvider = new UIDCompletionProvider(topicMetadataCache);
     context.subscriptions.push(
         vscode.languages.registerCompletionItemProvider(languageSelectors, completionProvider, '@')
     );
+
+    outputChannel.append('Completion provider initialised.\n');
 }
 
 /**
@@ -62,9 +76,20 @@ export async function deactivate(): Promise<void> {
  * Handle the docfx.refreshTopicUIDs command.
  */
 async function handleRefreshTopicUIDs(): Promise<void> {
+    outputChannel.clear();
+    outputChannel.append('Flushing the topic cache...\n');
+    
     await topicMetadataCache.flush(true);
+    
+    outputChannel.append('Topic cache flushed.\n');
 
+    outputChannel.append('Flushing the topic cache.\n');
+    
     await topicMetadataCache.ensurePopulated();
+    
+    outputChannel.append(
+        `Topic cache now contains ${topicMetadataCache.topicCount} topics from "${topicMetadataCache.projectFile}".\n`
+    );
 }
 
 /**
@@ -107,17 +132,4 @@ function isSupportedLanguage(): boolean {
             return false;
         }
     }
-}
-
-/**
- * Check if the cache needs to be invalidated (because the workspace's root path has changed).
- */
-async function checkCache(ignoreMissingProjectFile?: boolean): Promise<boolean> {
-    if (vscode.workspace.rootPath !== currentWorkspaceRootPath) {
-        await topicMetadataCache.flush(true);
-
-        currentWorkspaceRootPath = vscode.workspace.rootPath;
-    }
-
-    return await topicMetadataCache.ensurePopulated(ignoreMissingProjectFile);
 }

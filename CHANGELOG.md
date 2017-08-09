@@ -36,3 +36,7 @@
 ## v0.0.9
 
 * Persist topic metadata cache in workspace-specific file.
+
+## v0.1.0
+
+* Improve extension startup time.
