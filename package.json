@@ -2,7 +2,7 @@
     "name": "docfx-assistant",
     "displayName": "DocFX Assistant",
     "description": "Tools to assist with authoring content using Microsoft DocFX.",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "publisher": "tintoy",
     "license": "MIT",
     "repository": {
@@ -50,6 +50,7 @@
         "test": "node ./node_modules/vscode/bin/test"
     },
     "devDependencies": {
+        "@types/chokidar": "^1.7.1",
         "@types/glob": "^5.0.30",
         "@types/js-yaml": "^3.9.0",
         "@types/mocha": "^2.2.32",
@@ -61,6 +62,8 @@
         "vscode": "^1.0.0"
     },
     "dependencies": {
+        "chokidar": "^1.7.0",
+        "docfx-project": "0.0.7",
         "glob": "^7.1.2",
         "js-yaml": "^3.9.1",
         "minimatch": "^3.0.4",

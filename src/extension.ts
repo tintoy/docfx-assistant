@@ -1,11 +1,11 @@
 'use strict';
 
+import { TopicMetadata, TopicType } from 'docfx-project';
 import * as fs from 'mz/fs';
 import * as path from 'path';
 import * as Rx from 'rxjs';
 import * as vscode from 'vscode';
 
-import { TopicMetadata, TopicType } from './docfx/docfx';
 import { MetadataCache } from './metadata-cache';
 import { TopicChange, TopicChangeType, observeTopicChanges } from './change-adapter';
 import { UIDCompletionProvider } from './completion-provider';
@@ -62,7 +62,7 @@ export async function deactivate(): Promise<void> {
  * Handle the docfx.refreshTopicUIDs command.
  */
 async function handleRefreshTopicUIDs(): Promise<void> {
-    await topicMetadataCache.flush();
+    await topicMetadataCache.flush(true);
 
     await topicMetadataCache.ensurePopulated();
 }
@@ -114,7 +114,7 @@ function isSupportedLanguage(): boolean {
  */
 async function checkCache(ignoreMissingProjectFile?: boolean): Promise<boolean> {
     if (vscode.workspace.rootPath !== currentWorkspaceRootPath) {
-        await topicMetadataCache.flush();
+        await topicMetadataCache.flush(true);
 
         currentWorkspaceRootPath = vscode.workspace.rootPath;
     }

@@ -28,3 +28,7 @@
 
 * Implement completion provider for topic UIDs.
 * Replace UID quick-pick list with completion provider.
+
+## v0.0.8
+
+* Use chokidar instead of VSCode API for watching DocFX content files (VSCode API is unreliable).

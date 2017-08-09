@@ -1,6 +1,6 @@
+import { TopicMetadata } from 'docfx-project';
 import * as vscode from 'vscode';
 
-import { TopicMetadata } from './docfx/docfx';
 import { MetadataCache } from './metadata-cache';
 
 /**

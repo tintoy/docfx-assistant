@@ -4,7 +4,7 @@ import * as Rx from 'rxjs';
 import * as vscode from 'vscode';
 
 import { runWithProgressObserver, VSCodeProgress } from './common/progress';
-import { TopicMetadata, TopicType, getAllTopics } from './docfx/docfx';
+import { TopicMetadata, TopicType, getFileTopics, DocFXProject } from 'docfx-project';
 import { TopicChange, TopicChangeType } from './change-adapter';
 
 /**
@@ -234,10 +234,12 @@ export class MetadataCache {
                 this.topics = new Map<string, TopicMetadata>();
                 this.topicsByContentFile = new Map<string, TopicMetadata[]>();
 
-                const topicMetadata: TopicMetadata[] = await getAllTopics(this.docfxProjectFile, progress);
+                const project = await DocFXProject.load(this.docfxProjectFile);
+
+                const topicMetadata: TopicMetadata[] = await project.getTopics(progress);
                 topicMetadata.forEach(topic => {
                     if (path.isAbsolute(topic.sourceFile)) {
-                        topic.sourceFile = vscode.workspace.asRelativePath(topic.sourceFile);
+                        topic.sourceFile = path.relative(project.projectDir, topic.sourceFile);
                     }
 
                     this.topics.set(topic.uid, topic);
@@ -305,7 +307,7 @@ export class MetadataCache {
         switch (change.changeType)
         {
             case TopicChangeType.Added:
-            case TopicChangeType.Updated:
+            case TopicChangeType.Changed:
             {
                 let contentFileTopics: TopicMetadata[] = this.topicsByContentFile.get(change.contentFile);
                 if (contentFileTopics) {

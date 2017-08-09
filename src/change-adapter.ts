@@ -1,9 +1,10 @@
+import * as chokidar from 'chokidar';
 import * as path from 'path';
 import * as Rx from 'rxjs';
 import * as vscode from 'vscode';
 
 import { getDocFXProjectFile } from './common/workspace-utils';
-import { TopicMetadata, getTopics } from './docfx/docfx';
+import { DocFXProject, TopicMetadata, getFileTopics } from 'docfx-project';
 
 /**
  * Represents a type of topic change.
@@ -15,8 +16,8 @@ export enum TopicChangeType {
     /** Topic(s) removed. */
     Removed,
 
-    /** Topic(s) updated. */
-    Updated
+    /** Topic(s) changed. */
+    Changed
 }
 
 /**
@@ -25,6 +26,8 @@ export enum TopicChangeType {
 export interface TopicChange {
     /**
      * The content file containing the topic(s).
+     * 
+     * Must be relative to DocFX project directory.
      */
     contentFile: string;
 
@@ -54,43 +57,51 @@ export async function observeTopicChanges(context: vscode.ExtensionContext): Pro
     const docfxProjectFile = await getDocFXProjectFile(context);
     const docfxProjectDir = path.dirname(docfxProjectFile);
 
-    return new Rx.Observable<TopicChange>(subscriber => {
-        const glob = path.join(docfxProjectDir, '**', '*.{md,yml}');
-        const watcher: vscode.FileSystemWatcher = vscode.workspace.createFileSystemWatcher(glob);
+    const docfxProject = await DocFXProject.load(docfxProjectFile);
 
-        async function notify(contentFile: string, changeType: TopicChangeType): Promise<void> {
-            if (contentFile.endsWith('toc.yml')) // We don't care about table-of-contents files.
+    return new Rx.Observable<TopicChange>(subscriber => {
+        async function notify(filePath: string, changeType: TopicChangeType): Promise<void> {
+            if (!docfxProject.includesContentFile(filePath))
                 return;
 
             const changeNotification: TopicChange = {
                 changeType: changeType,
-                contentFile: vscode.workspace.asRelativePath(contentFile)
+                contentFile: path.relative(docfxProject.projectDir, filePath)
             };
 
             if (changeType !== TopicChangeType.Removed)
-                changeNotification.topics = await getTopics(contentFile);
-            
+                changeNotification.topics = await getFileTopics(filePath);
+
             subscriber.next(changeNotification);
         }
 
-        watcher.onDidCreate(fileUri => {
-            notify(fileUri.fsPath, TopicChangeType.Added).catch(
-                error => subscriber.error(error)
-            );
-        });
-        watcher.onDidChange(fileUri => {
-            notify(fileUri.fsPath, TopicChangeType.Updated).catch(
-                error => subscriber.error(error)
-            );
-        });
-        watcher.onDidDelete(fileUri => {
-            notify(fileUri.fsPath, TopicChangeType.Removed).catch(
-                error => subscriber.error(error)
-            );
+        const contentFileGlobs = [
+            path.join(docfxProjectDir, '**', '*.md'),
+            path.join(docfxProjectDir, '**', '*.yml')
+        ];
+        const watcher = chokidar.watch(contentFileGlobs, {
+            ignoreInitial: true,
+            usePolling: false
         });
 
+        watcher.on('add', (filePath: string) => {
+            notify(filePath, TopicChangeType.Added).catch(
+                error => subscriber.error(error)
+            );
+        });
+        watcher.on('change', (filePath: string) => {
+            notify(filePath, TopicChangeType.Changed).catch(
+                error => subscriber.error(error)
+            );
+        });
+        watcher.on('unlink', (filePath: string) => {
+            notify(filePath, TopicChangeType.Removed).catch(
+                error => subscriber.error(error)
+            );
+        });
+        
         return () => {
-            watcher.dispose();
+            watcher.close();
         };
     });
 }
