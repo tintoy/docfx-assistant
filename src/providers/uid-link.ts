@@ -82,24 +82,24 @@ export class UIDLinkProvider implements vscode.DocumentLinkProvider {
      * @param projectDir The current DocFX project directory.
      * @param match The current match.
      * 
-     * @returns {Promise<vscode.DocumentLink>} A promise that resolves to the link.
+     * @returns {Promise<vscode.DocumentLink>} The link, or null if the UID refers to a non-existent topic.
      */
-    private processMatch(document: vscode.TextDocument, projectDir: string, match: RegExpMatchArray): vscode.DocumentLink {
+    private processMatch(document: vscode.TextDocument, projectDir: string, match: RegExpMatchArray): vscode.DocumentLink | null {
         const prefix = match[1];
         const uid = match[2];
         
         const topicMetadata = this.metadataCache.getTopicMetadataByUID(uid);
         if (!topicMetadata)
-            return;
+            return null;
 
         const offset = (match.index || 0) + prefix.length;
-        const linkStart: vscode.Position = document.positionAt(offset);
-        const linkEnd: vscode.Position = document.positionAt(offset + uid.length);
+        const uidStart: vscode.Position = document.positionAt(offset);
+        const uidEnd: vscode.Position = document.positionAt(offset + uid.length);
 
         const sourceFilePath = path.join(projectDir, topicMetadata.sourceFile);
         
         return new vscode.DocumentLink(
-            new vscode.Range(linkStart, linkEnd),
+            new vscode.Range(uidStart, uidEnd),
             vscode.Uri.file(sourceFilePath)
         );
     }
