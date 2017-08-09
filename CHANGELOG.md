@@ -40,3 +40,7 @@
 ## v0.1.0
 
 * Improve extension startup time.
+
+## v0.1.1
+
+* Add document link provider for UIDs in inline (`@xxx`) and XRef (`<xref:xxx>`) styles.

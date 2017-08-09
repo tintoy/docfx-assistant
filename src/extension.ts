@@ -8,7 +8,8 @@ import * as vscode from 'vscode';
 
 import { MetadataCache } from './metadata-cache';
 import { TopicChange, TopicChangeType, observeTopicChanges } from './change-adapter';
-import { UIDCompletionProvider } from './completion-provider';
+import { UIDCompletionProvider } from './providers/uid-completion';
+import { UIDLinkProvider } from './providers/uid-link';
 
 // Extension state.
 let disableAutoScan: boolean;
@@ -62,6 +63,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     );
 
     outputChannel.append('Completion provider initialised.\n');
+
+    context.subscriptions.push(
+        vscode.languages.registerDocumentLinkProvider('markdown',
+            new UIDLinkProvider(topicMetadataCache)
+        )
+    );
 }
 
 /**

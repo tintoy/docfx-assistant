@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
-import { getUIDRangeAtPosition } from './utils/editor';
-import { MetadataCache } from './metadata-cache';
+import { getUIDRangeAtPosition } from '../utils/editor';
+import { MetadataCache } from '../metadata-cache';
 
 /**
  * Completion provider for DocFX UIDs.
@@ -37,10 +37,10 @@ export class UIDCompletionProvider implements vscode.CompletionItemProvider {
      * @returns A vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> that resolves to the completion items.
      */
     private async provideCompletionItemsCore(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.CompletionItem[]> {
-        if (!this.metadataCache.projectFile)
+        if (!await this.metadataCache.ensurePopulated())
             return null; // No current project.
 
-        let completionItems = await this.metadataCache.getUIDCompletionListItems();
+        let completionItems = this.metadataCache.getUIDCompletionListItems();
         
         // If they've typed part of a UID, filter the list to start there.
         const activeUIDRange = getUIDRangeAtPosition(document, position);

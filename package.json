@@ -2,7 +2,7 @@
     "name": "docfx-assistant",
     "displayName": "DocFX Assistant",
     "description": "Tools to assist with authoring content using Microsoft DocFX.",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "publisher": "tintoy",
     "license": "MIT",
     "repository": {
@@ -45,25 +45,6 @@
             {
                 "command": "docfx.refreshTopicUIDs",
                 "title": "DocFX: Refresh topic UIDs"
-            }
-        ],
-        "languages": [
-            {
-                "id": "markdown-docfx",
-                "aliases": [
-                    "DocFX Markdown"
-                ],
-                "extensions": [
-					".md"
-				],
-                "configuration": "./markdown-docfx.language-configuration.json"
-            }
-        ],
-        "grammars": [
-            {
-                "language": "markdown-docfx",
-                "scopeName": "text.html.markdown.docfx",
-                "path": "./syntaxes/markdown-docfx.tmLanguage."
             }
         ]
     },

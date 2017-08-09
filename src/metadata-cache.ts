@@ -103,12 +103,9 @@ export class MetadataCache {
      * Get the metadata for the topic (if any) associated with the specified UID.
      * 
      * @param uid The target UID.
-     * @returns A Promise that resolves to the metadata, or null if no topic was found with the specified Id.
+     * @returns The metadata, or null if no topic was found with the specified Id.
      */
-    public async getTopicMetadataByUID(uid: string): Promise<TopicMetadata | null> {
-        if (!await this.ensurePopulated())
-            return null;
-
+    public getTopicMetadataByUID(uid: string): TopicMetadata | null {
         const topicMetadata = this.topics.get(uid);
         if (!topicMetadata)
             return null;
@@ -118,45 +115,13 @@ export class MetadataCache {
     }
 
     /**
-     * Get VSCode QuickPick list items for all known UIDs.
-     * 
-     * @param topicType An optional topic type used to filter the items.
-     * 
-     * @returns {Promise<vscode.QuickPickItem[] | null>} A promise that resolves to the items, or null if the cache could not be populated.
-     */
-    public async getUIDQuickPickItems(topicType?: TopicType): Promise<vscode.QuickPickItem[] | null> {
-        if (!await this.ensurePopulated())
-            return null;
-
-        let topicMetadata = Array.from(this.topics.values());
-        if (topicType) {
-            topicMetadata = topicMetadata.filter(
-                metadata => metadata.detailedType === topicType
-            );
-        }
-
-        return topicMetadata
-            .sort(
-                (topic1, topic2) => topic1.uid.localeCompare(topic2.uid)
-            )
-            .map(metadata => <vscode.QuickPickItem>{
-                label: metadata.uid,
-                detail: metadata.title,
-                description: TopicType[metadata.detailedType]
-            });
-    }
-
-    /**
      * Get VSCode completion-list items for all known UIDs.
      * 
      * @param topicType An optional topic type used to filter the items.
      * 
      * @returns {Promise<vscode.CompletionItem[] | null>} A promise that resolves to the items, or null if the cache could not be populated.
      */
-    public async getUIDCompletionListItems(topicType?: TopicType): Promise<vscode.CompletionItem[] | null> {
-        if (!await this.ensurePopulated())
-            return null;
-
+    public getUIDCompletionListItems(topicType?: TopicType): vscode.CompletionItem[] {
         let topicMetadata = Array.from(this.topics.values());
         if (topicType) {
             topicMetadata = topicMetadata.filter(

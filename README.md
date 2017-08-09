@@ -10,6 +10,8 @@ I'm [planning](https://github.com/tintoy/docfx-assistant/issues/6) to eventually
 
 When you're editing Markdown or YAML and the workspace contains a DocFX project, type `@` or press `ctrl+space` to invoke the completion provider and bring up a pick-list of available topic UIDs.
 
+It will also underline inline-style and (`@xxx`) and XRef-style (`<xref:xxx>`) links for UIDs into hyperlinks pointing to the documents where they are defined. If a link is not underlined, then it points to a non-existent topic.
+
 To refresh the list of available topics, use the "DocFX: Refresh topic UIDs" command.
 
 ## Installation
