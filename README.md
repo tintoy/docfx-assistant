@@ -14,7 +14,7 @@ To refresh the list of available topics, use the "DocFX: Refresh topic UIDs" com
 
 ## Installation
 
-Since this extension is not available from the VS gallery yet, simply [download](https://github.com/tintoy/docfx-assistant/releases/latest) the VSIX package for the latest release and install it by choosing "Install from VSIX" from the menu on the top right of the extensions panel.
+You can install this extension from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=tintoy.docfx-assistant).
 
 ## Known issues
 
