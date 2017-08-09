@@ -20,9 +20,7 @@ You can install this extension from the [Visual Studio Marketplace](https://mark
 
 Unless configured otherwise, the extension will automatically start scanning and updating in the background as soon as it starts (or you open a workspace with `docfx.json` in the root directory). If your `docfx.json` file is in a sub-folder, the extension will not activate until you first invoke one of its commands (at which point, it will scan all the project's content files).
 
-The initial scan respects the project's content file globs (i.e. include / exclude), but the background updates do not (this will be added in a later release of the extension).
-
-The design of this extension is a little quick-and-dirty; it works well enough, but the internals are a little-too-tightly coupled to the VSCode API for comfort. There are no tests either, yet.
+There are no tests, yet.
 
 ## Questions / bug reports
 
