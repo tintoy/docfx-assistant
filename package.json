@@ -14,7 +14,12 @@
         "vscode": "^1.14.0"
     },
     "categories": [
+        "Languages",
         "Other"
+    ],
+    "keywords": [
+        "docfx",
+        "markdown"
     ],
     "activationEvents": [
         "workspaceContains:docfx.json",
