@@ -46,6 +46,25 @@
                 "command": "docfx.refreshTopicUIDs",
                 "title": "DocFX: Refresh topic UIDs"
             }
+        ],
+        "languages": [
+            {
+                "id": "markdown-docfx",
+                "aliases": [
+                    "DocFX Markdown"
+                ],
+                "extensions": [
+					".md"
+				],
+                "configuration": "./markdown-docfx.language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "markdown-docfx",
+                "scopeName": "text.html.markdown.docfx",
+                "path": "./syntaxes/markdown-docfx.tmLanguage."
+            }
         ]
     },
     "scripts": {
