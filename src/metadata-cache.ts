@@ -3,9 +3,10 @@ import * as path from 'path';
 import * as Rx from 'rxjs';
 import * as vscode from 'vscode';
 
-import { runWithProgressObserver, VSCodeProgress } from './common/progress';
+import { runWithProgressObserver, VSCodeProgress } from './utils/progress';
 import { TopicMetadata, TopicType, getFileTopics, DocFXProject } from 'docfx-project';
 import { TopicChange, TopicChangeType } from './change-adapter';
+import { mapToSerializable, mapFromSerializable, SerializableMapData } from './utils/json';
 
 /**
  * Workspace state keys used by the metadata cache.
@@ -55,7 +56,9 @@ export class MetadataCache {
      */
     constructor(private workspaceState: vscode.Memento) {
         this.topicChangeSubject.subscribe(
-            change => this.handleTopicChange(change),
+            change => this.handleTopicChange(change).catch(
+                error => console.log('Warning - error encountered by topic metadata cache: ' + error.message, error)
+            ),
             error => console.log('Warning - error encountered by topic change observer: ' + error.message, error)
         );
     }
@@ -72,6 +75,23 @@ export class MetadataCache {
 
         if (clearWorkspaceState)
             await this.workspaceState.update(StateKeys.projectFile, null);
+    }
+
+    /**
+     * Persist the metadata cache state.
+     */
+    public async persist(): Promise<void> {
+        const stateDirectory = path.join(vscode.workspace.rootPath, '.vscode', 'docfx-assistant');
+        if (!await fs.exists(stateDirectory))
+            await fs.mkdir(stateDirectory);
+
+        const stateFile = path.join(stateDirectory, 'topic-cache.json');
+        if (this.topics) {
+            const stateData = JSON.stringify(Array.from(this.topics.values()), null, '    ');
+            await fs.writeFile(stateFile, stateData, { encoding: 'utf8' });
+        } else if (await fs.exists(stateFile)) {
+            await fs.unlink(stateFile);
+        }
     }
 
     /**
@@ -227,19 +247,28 @@ export class MetadataCache {
             }
 
             if (!this.topics) {
-                progress.next(
-                    `Scanning DocFX project "${this.docfxProjectFile}"...`
-                );
+                const projectDir = path.dirname(this.docfxProjectFile);
 
                 this.topics = new Map<string, TopicMetadata>();
                 this.topicsByContentFile = new Map<string, TopicMetadata[]>();
+                
+                const topicMetadata: TopicMetadata[] = [];
+                const persistedTopicCache = await this.loadTopicCache();
+                if (persistedTopicCache) {
+                    topicMetadata.push(...persistedTopicCache);
+                } else {
+                    progress.next(
+                        `Scanning DocFX project "${this.docfxProjectFile}"...`
+                    );
 
-                const project = await DocFXProject.load(this.docfxProjectFile);
+                    const project = await DocFXProject.load(this.docfxProjectFile);
+                    const projectTopics = await project.getTopics(progress);
+                    topicMetadata.push(...projectTopics);
+                }
 
-                const topicMetadata: TopicMetadata[] = await project.getTopics(progress);
                 topicMetadata.forEach(topic => {
                     if (path.isAbsolute(topic.sourceFile)) {
-                        topic.sourceFile = path.relative(project.projectDir, topic.sourceFile);
+                        topic.sourceFile = path.relative(projectDir, topic.sourceFile);
                     }
 
                     this.topics.set(topic.uid, topic);
@@ -255,6 +284,8 @@ export class MetadataCache {
                 progress.next(
                     `$(check) Found ${this.topics.size} topics in DocFX project.`
                 );
+
+                await this.persist();
             }
         } catch (scanError) {
             console.log(scanError);
@@ -299,11 +330,25 @@ export class MetadataCache {
     }
 
     /**
+     * Load the persisted topic cache (if any).
+     */
+    private async loadTopicCache(): Promise<TopicMetadata[] | null> {
+        const stateDirectory = path.join(vscode.workspace.rootPath, '.vscode', 'docfx-assistant');
+        const stateFile = path.join(stateDirectory, 'topic-cache.json');
+        if (!await fs.exists(stateFile))
+            return null;
+
+        return JSON.parse(
+            await fs.readFile(stateFile, { encoding: 'utf-8' })
+        ) as TopicMetadata[];
+    }
+
+    /**
      * Handle a changed topic in the current workspace.
      * 
      * @param change A TopicChange representing the changed topic.
      */
-    private handleTopicChange(change: TopicChange): void {
+    private async handleTopicChange(change: TopicChange): Promise<void> {
         switch (change.changeType)
         {
             case TopicChangeType.Added:
@@ -325,6 +370,8 @@ export class MetadataCache {
                     contentFileTopics.push(topic);
                 });
 
+                await this.persist();
+
                 break;
             }
             case TopicChangeType.Removed:
@@ -339,6 +386,8 @@ export class MetadataCache {
 
                     this.topicsByContentFile.delete(change.contentFile);
                 }
+
+                await this.persist();
                 
                 break;
             }

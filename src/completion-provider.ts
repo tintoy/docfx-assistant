@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import { getUIDRangeAtPosition } from './common/editor-utils';
+import { getUIDRangeAtPosition } from './utils/editor';
 import { MetadataCache } from './metadata-cache';
 
 /**

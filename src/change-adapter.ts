@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as Rx from 'rxjs';
 import * as vscode from 'vscode';
 
-import { getDocFXProjectFile } from './common/workspace-utils';
+import { getDocFXProjectFile } from './utils/workspace';
 import { DocFXProject, TopicMetadata, getFileTopics } from 'docfx-project';
 
 /**

@@ -32,3 +32,7 @@
 ## v0.0.8
 
 * Use chokidar instead of VSCode API for watching DocFX content files (VSCode API is unreliable).
+
+## v0.0.9
+
+* Persist topic metadata cache in workspace-specific file.
