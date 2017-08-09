@@ -31,6 +31,15 @@ export class MetadataCache {
     private populatingPromise: Promise<boolean> = null;
 
     /**
+     * The full path to the persisted cache file.
+     */
+    private get cacheFile(): string {
+        const stateDirectory = path.join(vscode.workspace.rootPath, '.vscode', 'docfx-assistant');
+        
+        return path.join(stateDirectory, 'topic-cache.json');
+    }
+
+    /**
      * Is the cache currently populated?
      */
     public get isPopulated(): boolean {
@@ -78,6 +87,9 @@ export class MetadataCache {
         this.topics = null;
         this.topicsByContentFile = null;
 
+        if (await fs.exists(this.cacheFile))
+            await fs.unlink(this.cacheFile);
+
         if (clearWorkspaceState)
             await this.workspaceState.update(StateKeys.projectFile, null);
     }
@@ -86,16 +98,15 @@ export class MetadataCache {
      * Persist the metadata cache state.
      */
     public async persist(): Promise<void> {
-        const stateDirectory = path.join(vscode.workspace.rootPath, '.vscode', 'docfx-assistant');
+        const stateDirectory = path.dirname(this.cacheFile);
         if (!await fs.exists(stateDirectory))
             await fs.mkdir(stateDirectory);
 
-        const stateFile = path.join(stateDirectory, 'topic-cache.json');
         if (this.topics) {
             const stateData = JSON.stringify(Array.from(this.topics.values()), null, '    ');
-            await fs.writeFile(stateFile, stateData, { encoding: 'utf8' });
-        } else if (await fs.exists(stateFile)) {
-            await fs.unlink(stateFile);
+            await fs.writeFile(this.cacheFile, stateData, { encoding: 'utf8' });
+        } else if (await fs.exists(this.cacheFile)) {
+            await fs.unlink(this.cacheFile);
         }
     }
 
@@ -189,9 +200,7 @@ export class MetadataCache {
         if (this.populatingPromise)
             return await this.populatingPromise;
 
-        const populatingPromise = this.populatingPromise = runWithProgressObserver(
-            progress => this.populate(progress, ignoreMissingProjectFile)
-        );
+        const populatingPromise = this.populatingPromise = this.populate(ignoreMissingProjectFile);
 
         return await populatingPromise.then(
             () => this.populatingPromise = null
@@ -208,61 +217,19 @@ export class MetadataCache {
      * 
      * @returns {boolean} true, if the cache was successfully populated; otherwise, false.
      */
-    private async populate(progress: Rx.Observer<string>, ignoreMissingProjectFile: boolean): Promise<boolean> {
-        try {
-            if (!this.docfxProjectFile) {
-                this.docfxProjectFile = await this.findDocFXProjectFile(progress, ignoreMissingProjectFile);
-                if (!this.docfxProjectFile)
-                    return false;
-            }
+    private async populate(ignoreMissingProjectFile: boolean): Promise<boolean> {
+        if (!this.docfxProjectFile) {
+            this.docfxProjectFile = await runWithProgressObserver(
+                progress => this.findDocFXProjectFile(progress, ignoreMissingProjectFile)
+            );
+            if (!this.docfxProjectFile)
+                return false;
+        }
 
-            if (!this.topics) {
-                const projectDir = path.dirname(this.docfxProjectFile);
-
-                this.topics = new Map<string, TopicMetadata>();
-                this.topicsByContentFile = new Map<string, TopicMetadata[]>();
-
-                const topicMetadata: TopicMetadata[] = [];
-                const persistedTopicCache = await this.loadTopicCache();
-                if (persistedTopicCache) {
-                    topicMetadata.push(...persistedTopicCache);
-                } else {
-                    progress.next(
-                        `Scanning DocFX project "${this.docfxProjectFile}"...`
-                    );
-
-                    const project = await DocFXProject.load(this.docfxProjectFile);
-                    const projectTopics = await project.getTopics(progress);
-                    topicMetadata.push(...projectTopics);
-                }
-
-                topicMetadata.forEach(topic => {
-                    if (path.isAbsolute(topic.sourceFile)) {
-                        topic.sourceFile = path.relative(projectDir, topic.sourceFile);
-                    }
-
-                    this.topics.set(topic.uid, topic);
-
-                    let contentFileTopics: TopicMetadata[] = this.topicsByContentFile.get(topic.sourceFile);
-                    if (!contentFileTopics) {
-                        contentFileTopics = [];
-                        this.topicsByContentFile.set(topic.sourceFile, contentFileTopics);
-                    }
-                    contentFileTopics.push(topic);
-                });
-
-                progress.next(
-                    `$(check) Found ${this.topics.size} topics in DocFX project.`
-                );
-
-                await this.persist();
-            }
-        } catch (scanError) {
-            console.log(scanError);
-
-            progress.error(scanError);
-
-            return false;
+        if (!this.topics) {
+            return await runWithProgressObserver(
+                progress => this.loadTopicMetadata(progress)
+            );
         }
 
         return true;
@@ -277,40 +244,130 @@ export class MetadataCache {
      * @param ignoreMissingProjectFile When true, then no alert will be displayed if no DocFX project file is found in the current workspace.
      */
     private async findDocFXProjectFile(progress: Rx.Observer<string>, ignoreMissingProjectFile: boolean): Promise<string | null> {
-        const cachedProjectFile = this.workspaceState.get<string>(StateKeys.projectFile);
-        if (cachedProjectFile && await fs.exists(cachedProjectFile)) {
-            return cachedProjectFile;
-        }
-        
-        const files = await vscode.workspace.findFiles('**/docfx.json', '.git/**,**/node_modules/**', 1);
-        if (!files.length) {
-            if (!ignoreMissingProjectFile) {
-                progress.error(
-                    MetadataCacheError.warning('Cannot find docfx.json in the current workspace.')
-                );
+        try {
+            progress.next('Scanning workspace for DocFX project file(s)...');
+
+            const cachedProjectFile = this.workspaceState.get<string>(StateKeys.projectFile);
+            if (cachedProjectFile && await fs.exists(cachedProjectFile)) {
+                progress.next(`Found cached project file "${cachedProjectFile}".`);
+
+                return cachedProjectFile;
             }
+            
+            const files = await vscode.workspace.findFiles('**/docfx.json', '.git/**,**/node_modules/**', 1);
+            if (!files.length) {
+                if (!ignoreMissingProjectFile) {
+                    progress.error(
+                        MetadataCacheError.warning('Cannot find docfx.json in the current workspace.')
+                    );
+                } else {
+                    progress.next('No DocFX project files found in current workspace.');
+                }
+
+                return null;
+            }
+
+            progress.next('Caching DocFX project file...');
+
+            const projectFile = files[0].fsPath;
+            await this.workspaceState.update(StateKeys.projectFile, projectFile);
+
+            progress.next('DocFX project file cached.');
+
+            return projectFile;
+        } catch (scanError) {
+            console.log(scanError);
+
+            progress.error(scanError);
 
             return null;
         }
-
-        const projectFile = files[0].fsPath;
-        await this.workspaceState.update(StateKeys.projectFile, projectFile);
-
-        return projectFile;
     }
 
     /**
-     * Load the persisted topic cache (if any).
+     * Load topic metadata into the cache.
+     * 
+     * @param progress An Observable<string> used to report progress.
      */
-    private async loadTopicCache(): Promise<TopicMetadata[] | null> {
-        const stateDirectory = path.join(vscode.workspace.rootPath, '.vscode', 'docfx-assistant');
-        const stateFile = path.join(stateDirectory, 'topic-cache.json');
-        if (!await fs.exists(stateFile))
-            return null;
+    private async loadTopicMetadata(progress: Rx.Observer<string>): Promise<boolean> {
+        try {
+            const projectDir = path.dirname(this.docfxProjectFile);
 
-        return JSON.parse(
-            await fs.readFile(stateFile, { encoding: 'utf-8' })
-        ) as TopicMetadata[];
+            this.topics = new Map<string, TopicMetadata>();
+            this.topicsByContentFile = new Map<string, TopicMetadata[]>();
+
+            const topicMetadata: TopicMetadata[] = [];
+            const persistedTopicCache = await this.loadTopicsFromCacheFile(progress);
+            if (persistedTopicCache) {
+                topicMetadata.push(...persistedTopicCache);
+            } else {
+                progress.next(
+                    `Scanning DocFX project "${this.docfxProjectFile}"...`
+                );
+
+                const project = await DocFXProject.load(this.docfxProjectFile);
+                const projectTopics = await project.getTopics(progress);
+                topicMetadata.push(...projectTopics);
+            }
+
+            topicMetadata.forEach(topic => {
+                if (path.isAbsolute(topic.sourceFile)) {
+                    topic.sourceFile = path.relative(projectDir, topic.sourceFile);
+                }
+
+                this.topics.set(topic.uid, topic);
+
+                let contentFileTopics: TopicMetadata[] = this.topicsByContentFile.get(topic.sourceFile);
+                if (!contentFileTopics) {
+                    contentFileTopics = [];
+                    this.topicsByContentFile.set(topic.sourceFile, contentFileTopics);
+                }
+                contentFileTopics.push(topic);
+            });
+
+            progress.next(
+                `$(check) Found ${this.topics.size} topics in DocFX project.`
+            );
+
+            await this.persist();
+
+            return true;
+
+        } catch (scanError) {
+            console.log(scanError);
+
+            progress.error(scanError);
+
+            return false;
+        }
+    }
+
+    /**
+     * Load persisted topic metadata from the cache file (if it exists).
+     * 
+     * @param progress An Observable<string> used to report progress.
+     * 
+     * @returns {Promise<TopicMetadata[] | null>} A promise that resolves to the topic metadata, or null if the cache file does not exist.
+     */
+    private async loadTopicsFromCacheFile(progress: Rx.Observer<string>): Promise<TopicMetadata[] | null> {
+        const stateDirectory = path.join(vscode.workspace.rootPath, '.vscode', 'docfx-assistant');
+        const cacheFile = path.join(stateDirectory, 'topic-cache.json');
+        
+        progress.next(`Attempting to load DocFX topic metadata cache from "${cacheFile}"...`);
+
+        if (!await fs.exists(cacheFile)) {
+            progress.next(`Cache file "${cacheFile}" not found.`);
+        
+            return null;
+        }
+
+        const metadata: TopicMetadata[] = JSON.parse(
+            await fs.readFile(cacheFile, { encoding: 'utf-8' })
+        );
+
+        progress.next(`Read ${metadata.length} topics from "${cacheFile}".`);
+
+        return metadata;
     }
 
     /**

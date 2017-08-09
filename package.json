@@ -68,7 +68,7 @@
     },
     "dependencies": {
         "chokidar": "^1.7.0",
-        "docfx-project": "0.0.7",
+        "docfx-project": "0.0.8",
         "glob": "^7.1.2",
         "js-yaml": "^3.9.1",
         "minimatch": "^3.0.4",

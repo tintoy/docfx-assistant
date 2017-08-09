@@ -4,6 +4,7 @@
 
 import { Subject, Observer } from 'rxjs';
 import * as vscode from 'vscode';
+import { isPromise } from './promise';
 
 /**
  * VS Code's progress-reporting API.
@@ -27,20 +28,34 @@ export async function runWithProgress<T>(action: (progress: VSCodeProgress) => P
 }
 
 /**
+ * An action to perform with progress.
+ */
+export type ProgressActionWithObserver<T> = (progress: Observer<string>) => Promise<T>;
+
+/**
+ * A synchronous action to perform with progress.
+ */
+export type SyncProgressActionWithObserver<T> = (progress: Observer<string>) => T;
+
+/**
  * Run an asynchronous action with an Observer<string> for progress reporting.
  * 
  * @param action The asynchronous action (receives access to the progress Observer).
  */
-export async function runWithProgressObserver<T>(action: (progress: Observer<string>) => Promise<T>): Promise<T> {
+export async function runWithProgressObserver<T>(action: ProgressActionWithObserver<T> | SyncProgressActionWithObserver<T>): Promise<T> {
     const progressOptions: vscode.ProgressOptions = {
         location: vscode.ProgressLocation.Window,
         title: 'DocFX Assistant'
     };
 
-    return await vscode.window.withProgress(progressOptions, async progress => {
+    return vscode.window.withProgress(progressOptions, progress => {
         const progressObserver: Observer<string> = createProgressObserver(progress);
 
-        return await action(progressObserver);
+        const result = action(progressObserver);
+        if (isPromise<T>(result))
+            return result;
+
+        return Promise.resolve(result);
     });
 }
 
