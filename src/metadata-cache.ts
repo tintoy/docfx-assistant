@@ -87,11 +87,12 @@ export class MetadataCache {
         this.topics = null;
         this.topicsByContentFile = null;
 
-        if (await fs.exists(this.cacheFile))
-            await fs.unlink(this.cacheFile);
+        if (clearWorkspaceState) {
+            if (await fs.exists(this.cacheFile))
+                await fs.unlink(this.cacheFile);
 
-        if (clearWorkspaceState)
             await this.workspaceState.update(StateKeys.projectFile, null);
+        }
     }
 
     /**

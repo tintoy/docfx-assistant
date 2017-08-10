@@ -44,3 +44,7 @@
 ## v0.1.1
 
 * Add document link provider for UIDs in inline (`@xxx`) and XRef (`<xref:xxx>`) styles.
+
+## v0.1.2
+
+* Fix cache-refresh bug.

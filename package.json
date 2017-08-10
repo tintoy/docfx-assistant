@@ -2,7 +2,7 @@
     "name": "docfx-assistant",
     "displayName": "DocFX Assistant",
     "description": "Tools to assist with authoring content using Microsoft DocFX.",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "publisher": "tintoy",
     "license": "MIT",
     "repository": {

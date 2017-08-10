@@ -74,9 +74,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 /**
  * Called when the extension is deactivated.
  */
-export async function deactivate(): Promise<void> {
-    await topicMetadataCache.flush();
-    topicMetadataCache = null;
+export function deactivate(): void {
+    // Nothing to clean up.
 }
 
 /**
