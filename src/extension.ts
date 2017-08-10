@@ -6,15 +6,20 @@ import * as path from 'path';
 import * as Rx from 'rxjs';
 import * as vscode from 'vscode';
 
-import { MetadataCache } from './metadata-cache';
 import { TopicChange, TopicChangeType, observeTopicChanges } from './change-adapter';
+import { StateKeys } from './constants';
+import { MetadataCache, MetadataCacheError } from './metadata-cache';
 import { UIDCompletionProvider } from './providers/uid-completion';
 import { UIDLinkProvider } from './providers/uid-link';
+import { runWithProgressObserver } from './utils/progress';
+import { getDocFXProjectFile } from './utils/workspace';
+
+const stateDirectory = path.join(vscode.workspace.rootPath, '.vscode', 'docfx-assistant');
 
 // Extension state.
 let disableAutoScan: boolean;
 let outputChannel: vscode.OutputChannel;
-let topicMetadataCache: MetadataCache;
+let metadataCache: MetadataCache;
 
 /**
  * Called when the extension is activated.
@@ -26,38 +31,43 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     context.subscriptions.push(outputChannel);
 
     configure(context);
-    
-    topicMetadataCache = new MetadataCache(context.workspaceState);
 
+    metadataCache = new MetadataCache(stateDirectory);
+    await tryOpenDocFXProject(context.workspaceState);
+    
     context.subscriptions.push(
         vscode.commands.registerCommand('docfx.refreshTopicUIDs', handleRefreshTopicUIDs)
     );
     
     // Attempt to pre-populate the cache, but don't kick up a stink if the workspace does not contain a valid project file.
-    if (!disableAutoScan) {
-        outputChannel.append('Populating topic cache...\n');
-        await topicMetadataCache.ensurePopulated(true);
-        outputChannel.append(
-            `Topic cache now contains ${topicMetadataCache.topicCount} topics from "${topicMetadataCache.projectFile}".\n`
-        );
-    }
-
-    outputChannel.append('Observing workspace changes...\n');
-    const topicChanges = await observeTopicChanges(context);
+    if (metadataCache.project) {
+        if (!disableAutoScan) {
+            outputChannel.append('Populating topic cache...\n');
+            
+            await metadataCache.ensurePopulated();
+            
+            outputChannel.append(
+                `Topic cache now contains ${metadataCache.topicCount} topics from "${metadataCache.projectFile}".\n`
+            );
+        }
+        
+        outputChannel.append('Observing workspace changes...\n');
+        const topicChanges = observeTopicChanges(metadataCache.project);
     
-    const cacheSubscription = topicChanges.subscribe(topicMetadataCache.topicChanges);
-    context.subscriptions.push(
-        new vscode.Disposable(
-            () => cacheSubscription.unsubscribe()
-        )
-    );
+        const cacheSubscription = topicChanges.subscribe(metadataCache.topicChanges);
+        context.subscriptions.push(
+            new vscode.Disposable(
+                () => cacheSubscription.unsubscribe()
+            )
+        );
 
-    outputChannel.append('Workspace change observer configured.\n');
+        outputChannel.append('Workspace change observer configured.\n');
+    }
 
     outputChannel.append('Initialising completion provider...\n');
 
     const languageSelectors = [ 'markdown', 'yaml' ];
-    const completionProvider = new UIDCompletionProvider(topicMetadataCache);
+    const completionProvider = new UIDCompletionProvider(metadataCache);
     context.subscriptions.push(
         vscode.languages.registerCompletionItemProvider(languageSelectors, completionProvider, '@')
     );
@@ -66,7 +76,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     context.subscriptions.push(
         vscode.languages.registerDocumentLinkProvider('markdown',
-            new UIDLinkProvider(topicMetadataCache)
+            new UIDLinkProvider(metadataCache)
         )
     );
 }
@@ -75,7 +85,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
  * Called when the extension is deactivated.
  */
 export function deactivate(): void {
-    // Nothing to clean up.
+    metadataCache.closeProject();
 }
 
 /**
@@ -85,16 +95,16 @@ async function handleRefreshTopicUIDs(): Promise<void> {
     outputChannel.clear();
     outputChannel.append('Flushing the topic cache...\n');
     
-    await topicMetadataCache.flush(true);
+    await metadataCache.flush(true);
     
     outputChannel.append('Topic cache flushed.\n');
 
     outputChannel.append('Flushing the topic cache.\n');
     
-    await topicMetadataCache.ensurePopulated();
+    await metadataCache.ensurePopulated();
     
     outputChannel.append(
-        `Topic cache now contains ${topicMetadataCache.topicCount} topics from "${topicMetadataCache.projectFile}".\n`
+        `Topic cache now contains ${metadataCache.topicCount} topics from "${metadataCache.projectFile}".\n`
     );
 }
 
@@ -138,4 +148,30 @@ function isSupportedLanguage(): boolean {
             return false;
         }
     }
+}
+
+/**
+ * Try to open the DocFX project (if any) for the current workspace.
+ * 
+ * @param workspaceState Persistent workspace state.
+ */
+async function tryOpenDocFXProject(workspaceState: vscode.Memento): Promise<void> {
+    const projectFile = await runWithProgressObserver(
+        progress => getDocFXProjectFile(workspaceState, progress, true)
+    );
+    if (projectFile) {
+        await metadataCache.openProject(projectFile);
+    }
+}
+
+/**
+ * Reset the cached DocFX project file path in current workspace state.
+ * 
+ * TODO: Eliminate the need for this by making the metadata cache take the project file path as a parameter.
+ * 
+ * @param progress An Observable<string> used to report progress.
+ * @param ignoreMissingProjectFile When true, then no alert will be displayed if no DocFX project file is found in the current workspace.
+ */
+async function resetDocFXProjectFile(workspaceState: vscode.Memento): Promise<void> {
+    await workspaceState.update(StateKeys.projectFile, null);
 }

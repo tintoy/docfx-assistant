@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 
 import { getDocFXProjectFile } from './utils/workspace';
 import { DocFXProject, TopicMetadata, getFileTopics } from 'docfx-project';
+import { runWithProgressObserver } from './utils/progress';
 
 /**
  * Represents a type of topic change.
@@ -47,18 +48,10 @@ export interface TopicChange {
 /**
  * Observe changes to topics in content files contained in the workspace.
  * 
- * @returns {Promise<Rx.Observable<TopicChange>>} A promise that resolves to an observable sequence of {@link TopicChange} representing the changes.
+ * @param docfxProject { DocFXProject } The DocFX project for which topic changes will be observed.
+ * @returns {Rx.Observable<TopicChange>} An observable sequence of {@link TopicChange} representing the changes.
  */
-export async function observeTopicChanges(context: vscode.ExtensionContext): Promise<Rx.Observable<TopicChange>> {
-    if (!vscode.workspace.rootPath) {
-        throw new Error('Current workspace has no root path.');
-    }
-
-    const docfxProjectFile = await getDocFXProjectFile(context);
-    const docfxProjectDir = path.dirname(docfxProjectFile);
-
-    const docfxProject = await DocFXProject.load(docfxProjectFile);
-
+export function observeTopicChanges(docfxProject: DocFXProject): Rx.Observable<TopicChange> {
     return new Rx.Observable<TopicChange>(subscriber => {
         async function notify(filePath: string, changeType: TopicChangeType): Promise<void> {
             if (!docfxProject.includesContentFile(filePath))
@@ -76,8 +69,8 @@ export async function observeTopicChanges(context: vscode.ExtensionContext): Pro
         }
 
         const contentFileGlobs = [
-            path.join(docfxProjectDir, '**', '*.md'),
-            path.join(docfxProjectDir, '**', '*.yml')
+            path.join(docfxProject.projectDir, '**', '*.md'),
+            path.join(docfxProject.projectDir, '**', '*.yml')
         ];
         const watcher = chokidar.watch(contentFileGlobs, {
             ignoreInitial: true,

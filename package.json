@@ -55,12 +55,14 @@
         "test": "node ./node_modules/vscode/bin/test"
     },
     "devDependencies": {
+        "@types/chai": "^4.0.2",
         "@types/chokidar": "^1.7.1",
         "@types/glob": "^5.0.30",
         "@types/js-yaml": "^3.9.0",
         "@types/mocha": "^2.2.32",
         "@types/mz": "0.0.31",
         "@types/node": "^6.0.40",
+        "chai": "^4.1.1",
         "mocha": "^2.3.3",
         "tslint": "^5.5.0",
         "typescript": "^2.0.3",

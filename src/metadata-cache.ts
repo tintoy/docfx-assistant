@@ -9,19 +9,11 @@ import { TopicChange, TopicChangeType } from './change-adapter';
 import { mapToSerializable, mapFromSerializable, SerializableMapData } from './utils/json';
 
 /**
- * Workspace state keys used by the metadata cache.
- */
-class StateKeys {
-    /** The workspace state key representing the DocFX project file (if any) for the current workspace. */
-    public static readonly projectFile = 'docfxAssistant.projectFile';
-}
-
-/**
  * Cache for topic metadata.
  */
 export class MetadataCache {
     private topicChangeSubject: Rx.Subject<TopicChange> = new Rx.Subject<TopicChange>();
-    private docfxProjectFile: string = null;
+    private docfxProject: DocFXProject = null;
     private topics: Map<string, TopicMetadata> = null;
     private topicsByContentFile: Map<string, TopicMetadata[]> = null;
 
@@ -34,16 +26,14 @@ export class MetadataCache {
      * The full path to the persisted cache file.
      */
     private get cacheFile(): string {
-        const stateDirectory = path.join(vscode.workspace.rootPath, '.vscode', 'docfx-assistant');
-        
-        return path.join(stateDirectory, 'topic-cache.json');
+        return path.join(this.stateDirectory, 'topic-cache.json');
     }
 
     /**
      * Is the cache currently populated?
      */
     public get isPopulated(): boolean {
-        return this.docfxProjectFile !== null && this.topics !== null && this.topicsByContentFile !== null;
+        return this.docfxProject !== null && this.topics !== null && this.topicsByContentFile !== null;
     }
 
     /** The number of topics in the cache. */
@@ -59,16 +49,25 @@ export class MetadataCache {
     }
 
     /**
+     * The cache's underlying DocFX project.
+     */
+    public get project(): DocFXProject {
+        return this.docfxProject;
+    }
+
+    /**
      * The current project file (if any).
      */
     public get projectFile(): string {
-        return this.docfxProjectFile;
+        return this.docfxProject ? this.docfxProject.projectFile : null;
     }
 
     /**
      * Create a new topic metadata cache.
+     * 
+     * @param stateDirectory {string} The directory for persisted cache state.
      */
-    constructor(private workspaceState: vscode.Memento) {
+    constructor(private stateDirectory: string) {
         this.topicChangeSubject.subscribe(
             change => this.handleTopicChange(change).catch(
                 error => console.log('Warning - error encountered by topic metadata cache: ' + error.message, error)
@@ -78,20 +77,40 @@ export class MetadataCache {
     }
 
     /**
+     * Open a DocFX project.
+     * 
+     * @param docfxProjectFile {string} The DocFX project file.
+     */
+    public async openProject(docfxProjectFile: string): Promise<void> {
+        if (this.docfxProject && this.docfxProject.projectFile === docfxProjectFile)
+            return;
+
+        // Only clear out existing workspace if we currently have another project open.
+        const haveExistingProject = this.docfxProject !== null;
+        await this.flush(haveExistingProject);
+
+        this.docfxProject = await DocFXProject.load(docfxProjectFile);
+    }
+
+    /**
+     * Close the current DocFX project (if any).
+     */
+    public closeProject(): void {
+        this.docfxProject = null;
+    }
+
+    /**
      * Flush the metadata cache.
      * 
      * @param clearWorkspaceState Also clear any state data persisted in workspace state?
      */
     public async flush(clearWorkspaceState?: boolean): Promise<void> {
-        this.docfxProjectFile = null;
         this.topics = null;
         this.topicsByContentFile = null;
 
         if (clearWorkspaceState) {
             if (await fs.exists(this.cacheFile))
                 await fs.unlink(this.cacheFile);
-
-            await this.workspaceState.update(StateKeys.projectFile, null);
         }
     }
 
@@ -194,14 +213,14 @@ export class MetadataCache {
      * 
      * @returns {boolean} true, if the cache was successfully populated; otherwise, false.
      */
-    public async ensurePopulated(ignoreMissingProjectFile?: boolean): Promise<boolean> {
-        if (this.docfxProjectFile && this.topics)
+    public async ensurePopulated(): Promise<boolean> {
+        if (this.projectFile && this.topics)
             return true;
 
         if (this.populatingPromise)
             return await this.populatingPromise;
 
-        const populatingPromise = this.populatingPromise = this.populate(ignoreMissingProjectFile);
+        const populatingPromise = this.populatingPromise = this.populate();
 
         return await populatingPromise.then(
             () => this.populatingPromise = null
@@ -214,18 +233,11 @@ export class MetadataCache {
      * TODO: Remove this function entirely, so the cache is initially populated by feeding a sequence of "create" topic changes.
      * 
      * @param progress The Observer used to report cache-population progress.
-     * @param ignoreMissingProjectFile When true, then no alert will be displayed if no DocFX project file is found in the current workspace.
      * 
      * @returns {boolean} true, if the cache was successfully populated; otherwise, false.
      */
-    private async populate(ignoreMissingProjectFile: boolean): Promise<boolean> {
-        if (!this.docfxProjectFile) {
-            this.docfxProjectFile = await runWithProgressObserver(
-                progress => this.findDocFXProjectFile(progress, ignoreMissingProjectFile)
-            );
-            if (!this.docfxProjectFile)
-                return false;
-        }
+    private async populate(): Promise<boolean> {
+        this.ensureOpenProject();
 
         if (!this.topics) {
             return await runWithProgressObserver(
@@ -237,62 +249,14 @@ export class MetadataCache {
     }
 
     /**
-     * Find the first DocFX project file (if any) in the current workspace.
-     * 
-     * TODO: Eliminate the need for this by making the metadata cache take the project file path as a parameter.
-     * 
-     * @param progress An Observable<string> used to report progress.
-     * @param ignoreMissingProjectFile When true, then no alert will be displayed if no DocFX project file is found in the current workspace.
-     */
-    private async findDocFXProjectFile(progress: Rx.Observer<string>, ignoreMissingProjectFile: boolean): Promise<string | null> {
-        try {
-            progress.next('Scanning workspace for DocFX project file(s)...');
-
-            const cachedProjectFile = this.workspaceState.get<string>(StateKeys.projectFile);
-            if (cachedProjectFile && await fs.exists(cachedProjectFile)) {
-                progress.next(`Found cached project file "${cachedProjectFile}".`);
-
-                return cachedProjectFile;
-            }
-            
-            const files = await vscode.workspace.findFiles('**/docfx.json', '.git/**,**/node_modules/**', 1);
-            if (!files.length) {
-                if (!ignoreMissingProjectFile) {
-                    progress.error(
-                        MetadataCacheError.warning('Cannot find docfx.json in the current workspace.')
-                    );
-                } else {
-                    progress.next('No DocFX project files found in current workspace.');
-                }
-
-                return null;
-            }
-
-            progress.next('Caching DocFX project file...');
-
-            const projectFile = files[0].fsPath;
-            await this.workspaceState.update(StateKeys.projectFile, projectFile);
-
-            progress.next('DocFX project file cached.');
-
-            return projectFile;
-        } catch (scanError) {
-            console.log(scanError);
-
-            progress.error(scanError);
-
-            return null;
-        }
-    }
-
-    /**
      * Load topic metadata into the cache.
      * 
      * @param progress An Observable<string> used to report progress.
      */
     private async loadTopicMetadata(progress: Rx.Observer<string>): Promise<boolean> {
         try {
-            const projectDir = path.dirname(this.docfxProjectFile);
+            const projectFile = this.docfxProject.projectFile;
+            const projectDir = this.docfxProject.projectDir;
 
             this.topics = new Map<string, TopicMetadata>();
             this.topicsByContentFile = new Map<string, TopicMetadata[]>();
@@ -303,11 +267,10 @@ export class MetadataCache {
                 topicMetadata.push(...persistedTopicCache);
             } else {
                 progress.next(
-                    `Scanning DocFX project "${this.docfxProjectFile}"...`
+                    `Scanning DocFX project "${projectFile}"...`
                 );
 
-                const project = await DocFXProject.load(this.docfxProjectFile);
-                const projectTopics = await project.getTopics(progress);
+                const projectTopics = await this.docfxProject.getTopics(progress);
                 topicMetadata.push(...projectTopics);
             }
 
@@ -426,6 +389,14 @@ export class MetadataCache {
                 break;
             }
         }
+    }
+
+    /**
+     * Ensure that the cache has an open project.
+     */
+    private ensureOpenProject(): void {
+        if (!this.docfxProject)
+            throw new MetadataCacheError('No DocFX project is currently open.');
     }
 }
 

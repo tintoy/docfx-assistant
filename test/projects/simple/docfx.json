@@ -1,0 +1,8 @@
+{
+    "build": {
+        "content": [{
+            "files": [ "articles/**/*.md" ],
+            "exclude": [ "articles/**/excluded.md" ]
+        }]
+    }
+}
