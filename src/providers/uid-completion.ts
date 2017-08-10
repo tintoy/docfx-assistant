@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
 import { getUIDRangeAtPosition } from '../utils/editor';
-import { MetadataCache } from '../metadata-cache';
+import { MetadataCache, TopicType, TopicMetadata } from 'docfx-project';
 
 /**
  * Completion provider for DocFX UIDs.
@@ -40,22 +40,64 @@ export class UIDCompletionProvider implements vscode.CompletionItemProvider {
         if (!await this.metadataCache.ensurePopulated())
             return null; // No current project.
 
-        let completionItems = this.metadataCache.getUIDCompletionListItems();
-        
         // If they've typed part of a UID, filter the list to start there.
+        let uidPrefix: string = null;
         const activeUIDRange = getUIDRangeAtPosition(document, position);
-        if (activeUIDRange && !activeUIDRange.isEmpty) {
-            const activeUID = document.getText(activeUIDRange);
+        if (activeUIDRange && !activeUIDRange.isEmpty)
+            uidPrefix = document.getText(activeUIDRange);
 
-            completionItems = completionItems.filter(
-                item => item.label.startsWith(activeUID)
-            );
-
-            completionItems.forEach(item => {
-                item.range = activeUIDRange;
-            });
-        }
+        const completionItems = this.metadataCache.getTopics(uidPrefix).map(
+            topicMetadata => completionItemFromTopicMetadata(topicMetadata, activeUIDRange)
+        );
 
         return completionItems;
     }
+}
+
+/**
+ * Create a new completion item from topic metadata.
+ * 
+ * @param topicMetadata The topic metadata.
+ * @param replaceRange The range of text (if any) that the completion will replace.
+ */
+function completionItemFromTopicMetadata(topicMetadata: TopicMetadata, replaceRange: vscode.Range): vscode.CompletionItem {
+    let itemKind: vscode.CompletionItemKind;
+    switch (topicMetadata.detailedType) {
+        case TopicType.Conceptual: {
+            itemKind = vscode.CompletionItemKind.Text;
+
+            break;
+        }
+        case TopicType.Namespace: {
+            itemKind = vscode.CompletionItemKind.Module;
+
+            break;
+        }
+        case TopicType.Type: {
+            itemKind = vscode.CompletionItemKind.Class;
+
+            break;
+        }
+        case TopicType.Property: {
+            itemKind = vscode.CompletionItemKind.Property;
+
+            break;
+        }
+        case TopicType.Method: {
+            itemKind = vscode.CompletionItemKind.Method;
+
+            break;
+        }
+        default: {
+            itemKind = vscode.CompletionItemKind.Value;
+
+            break;
+        }
+    }
+
+    const completionItem = new vscode.CompletionItem(topicMetadata.uid, itemKind);
+    completionItem.detail = topicMetadata.title + '\nLocation: ' + topicMetadata.sourceFile;
+    completionItem.range = replaceRange;
+
+    return completionItem;
 }

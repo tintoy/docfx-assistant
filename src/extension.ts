@@ -1,14 +1,12 @@
 'use strict';
 
-import { TopicMetadata, TopicType } from 'docfx-project';
+import * as docfx from 'docfx-project';
 import * as fs from 'mz/fs';
 import * as path from 'path';
 import * as Rx from 'rxjs';
 import * as vscode from 'vscode';
 
-import { TopicChange, TopicChangeType, observeTopicChanges } from './change-adapter';
 import { StateKeys } from './constants';
-import { MetadataCache, MetadataCacheError } from './metadata-cache';
 import { UIDCompletionProvider } from './providers/uid-completion';
 import { UIDLinkProvider } from './providers/uid-link';
 import { runWithProgressObserver } from './utils/progress';
@@ -19,7 +17,7 @@ const stateDirectory = path.join(vscode.workspace.rootPath, '.vscode', 'docfx-as
 // Extension state.
 let disableAutoScan: boolean;
 let outputChannel: vscode.OutputChannel;
-let metadataCache: MetadataCache;
+let metadataCache: docfx.MetadataCache;
 
 /**
  * Called when the extension is activated.
@@ -32,19 +30,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     configure(context);
 
-    metadataCache = new MetadataCache(stateDirectory);
+    metadataCache = new docfx.MetadataCache(stateDirectory);
     await tryOpenDocFXProject(context.workspaceState);
     
     context.subscriptions.push(
-        vscode.commands.registerCommand('docfx.refreshTopicUIDs', handleRefreshTopicUIDs)
+        vscode.commands.registerCommand('docfx.refreshTopicUIDs', async () => {
+            await handleRefreshTopicUIDs(context.workspaceState);
+        })
     );
     
     // Attempt to pre-populate the cache, but don't kick up a stink if the workspace does not contain a valid project file.
-    if (metadataCache.project) {
+    if (metadataCache.hasOpenProject) {
         if (!disableAutoScan) {
             outputChannel.append('Populating topic cache...\n');
             
-            await metadataCache.ensurePopulated();
+            await runWithProgressObserver(
+                progress => metadataCache.ensurePopulated(progress)
+            );
             
             outputChannel.append(
                 `Topic cache now contains ${metadataCache.topicCount} topics from "${metadataCache.projectFile}".\n`
@@ -52,7 +54,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         }
         
         outputChannel.append('Observing workspace changes...\n');
-        const topicChanges = observeTopicChanges(metadataCache.project);
+        const topicChanges = docfx.observeTopicChanges(metadataCache.projectDir);
     
         const cacheSubscription = topicChanges.subscribe(metadataCache.topicChanges);
         context.subscriptions.push(
@@ -90,18 +92,29 @@ export function deactivate(): void {
 
 /**
  * Handle the docfx.refreshTopicUIDs command.
+ * 
+ * @param workspaceState The workspace state store.
  */
-async function handleRefreshTopicUIDs(): Promise<void> {
+async function handleRefreshTopicUIDs(workspaceState: vscode.Memento): Promise<void> {
     outputChannel.clear();
     outputChannel.append('Flushing the topic cache...\n');
     
     await metadataCache.flush(true);
-    
+
     outputChannel.append('Topic cache flushed.\n');
 
-    outputChannel.append('Flushing the topic cache.\n');
+    outputChannel.append('Reloading DocFX project...\n');
+
+    await metadataCache.closeProject();
+    await tryOpenDocFXProject(workspaceState);
+
+    outputChannel.append('DocFX project reloaded.\n');
     
-    await metadataCache.ensurePopulated();
+    outputChannel.append('Repopulating the topic cache...\n');
+
+    await runWithProgressObserver(
+        progress => metadataCache.ensurePopulated(progress)
+    );
     
     outputChannel.append(
         `Topic cache now contains ${metadataCache.topicCount} topics from "${metadataCache.projectFile}".\n`

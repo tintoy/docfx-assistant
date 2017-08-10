@@ -1,5 +1,9 @@
 # Change Log
 
+## v0.1.3
+
+* Complete move of DocFX project engine to `docfx-project` module on NPM.
+
 ## v0.1.2
 
 * Fix cache-refresh bug.

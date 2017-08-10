@@ -3,7 +3,7 @@ import * as Rx from 'rxjs';
 import * as vscode from 'vscode';
 
 import { StateKeys } from '../constants';
-import { MetadataCacheError } from '../metadata-cache';
+import { MetadataCacheError } from 'docfx-project';
 
 /**
  * Find the first DocFX project file (if any) in the current workspace.

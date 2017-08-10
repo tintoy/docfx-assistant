@@ -2,7 +2,7 @@ import { TopicMetadata } from 'docfx-project';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
-import { MetadataCache } from '../metadata-cache';
+import { MetadataCache } from 'docfx-project';
 
 /**
  * Link provider for DocFX UIDs
@@ -88,7 +88,7 @@ export class UIDLinkProvider implements vscode.DocumentLinkProvider {
         const prefix = match[1];
         const uid = match[2];
         
-        const topicMetadata = this.metadataCache.getTopicMetadataByUID(uid);
+        const topicMetadata = this.metadataCache.getTopic(uid);
         if (!topicMetadata)
             return null;
 
