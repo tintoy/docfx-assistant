@@ -1,50 +1,50 @@
 # Change Log
 
-## v0.0.1
+## v0.1.2
 
-* Initial release
+* Fix cache-refresh bug.
 
-## v0.0.2
+## v0.1.1
 
-* Add link to [license](LICENSE).
+* Add document link provider for UIDs in inline (`@xxx`) and XRef (`<xref:xxx>`) styles.
 
-## v0.0.3
+## v0.1.0
 
-* Add progress reporting when scanning files.
+* Improve extension startup time.
 
-## v0.0.4
+## v0.0.9
 
-* Automatically scan project files on extension startup (unless configured not to).
+* Persist topic metadata cache in workspace-specific file.
 
-## v0.0.5
+## v0.0.8
 
-* Support filtering topics by type.
-
-## v0.0.6
-
-* Automatically track changes to topic content files in the current workspace.
+* Use chokidar instead of VSCode API for watching DocFX content files (VSCode API is unreliable).
 
 ## v0.0.7
 
 * Implement completion provider for topic UIDs.
 * Replace UID quick-pick list with completion provider.
 
-## v0.0.8
+## v0.0.6
 
-* Use chokidar instead of VSCode API for watching DocFX content files (VSCode API is unreliable).
+* Automatically track changes to topic content files in the current workspace.
 
-## v0.0.9
+## v0.0.5
 
-* Persist topic metadata cache in workspace-specific file.
+* Support filtering topics by type.
 
-## v0.1.0
+## v0.0.4
 
-* Improve extension startup time.
+* Automatically scan project files on extension startup (unless configured not to).
 
-## v0.1.1
+## v0.0.3
 
-* Add document link provider for UIDs in inline (`@xxx`) and XRef (`<xref:xxx>`) styles.
+* Add progress reporting when scanning files.
 
-## v0.1.2
+## v0.0.2
 
-* Fix cache-refresh bug.
+* Add link to [license](LICENSE).
+
+## v0.0.1
+
+* Initial release
