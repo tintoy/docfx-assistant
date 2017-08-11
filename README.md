@@ -18,11 +18,13 @@ To refresh the list of available topics, use the "DocFX: Refresh topic UIDs" com
 
 You can install this extension from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=tintoy.docfx-assistant).
 
-## Known issues
+## Notes
 
-Unless configured otherwise, the extension will automatically start scanning and updating in the background as soon as it starts (or you open a workspace with `docfx.json` in the root directory). If your `docfx.json` file is in a sub-folder, the extension will not activate until you first invoke one of its commands (at which point, it will scan all the project's content files).
+This extension uses [docfx-project](https://www.npmjs.com/package/docfx-project) to work with DocFX projects and their content files.
 
-There are no tests, yet.
+Unless configured otherwise, it will automatically start scanning and updating in the background as soon as it starts (or you open a workspace with `docfx.json` in the root directory). Note that if your `docfx.json` file is in a sub-folder, the extension will not activate until you first invoke one of its commands. 
+
+You may want to exclude `/.vscode/docfx-assistant` from source control (sorry, we can't do this automatically).
 
 ## Questions / bug reports
 
