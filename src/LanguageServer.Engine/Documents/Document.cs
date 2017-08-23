@@ -12,6 +12,8 @@ namespace DocFXAssistant.LanguageServer.Documents
 {
     using Utilities;
 
+    // TODO: Consider having intermediate TextDocument base class.
+
     /// <summary>
     ///     Represents the document state for an MSBuild document.
     /// </summary>
@@ -133,15 +135,15 @@ namespace DocFXAssistant.LanguageServer.Documents
         ///     Update the document's in-memory state.
         /// </summary>
         /// <param name="text">
-        ///     The document text.
+        ///     The updated document text.
         /// </param>
         /// <param name="cancellationToken">
         ///     An optional <see cref="CancellationToken"/> that can be used to cancel the operation.
         /// </param>
         /// <returns>
-        ///     A task representing the update operation.
+        ///     A task representing the update operation, that resolves to <c>true</c> if the document was updated.
         /// </returns>
-        public async Task Update(string text, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<bool> Update(string text, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (text == null)
                 throw new ArgumentNullException(nameof(text));
@@ -149,10 +151,12 @@ namespace DocFXAssistant.LanguageServer.Documents
             ClearDiagnostics();
             TextPositions = null;
 
-            await OnUpdate(text, cancellationToken);
+            bool updated = await OnUpdate(text, cancellationToken);
             
             TextPositions = new TextPositions(text);
             IsDirty = true;
+
+            return updated;
         }
 
         /// <summary>
@@ -197,7 +201,7 @@ namespace DocFXAssistant.LanguageServer.Documents
         /// <returns>
         ///     A task representing the load operation.
         /// </returns>        
-        protected abstract Task OnLoad(CancellationToken cancellationToken = default(CancellationToken));
+        protected virtual Task OnLoad(CancellationToken cancellationToken = default(CancellationToken)) => Task.CompletedTask;
 
         /// <summary>
         ///     Called when the document text is being updated.
@@ -209,9 +213,9 @@ namespace DocFXAssistant.LanguageServer.Documents
         ///     An optional <see cref="CancellationToken"/> that can be used to cancel the operation.
         /// </param>
         /// <returns>
-        ///     A task representing the update operation.
+        ///     A task representing the update operation, that resolves to <c>true</c> if the document was updated.
         /// </returns>        
-        protected abstract Task OnUpdate(string text, CancellationToken cancellationToken = default(CancellationToken));
+        protected virtual Task<bool> OnUpdate(string text, CancellationToken cancellationToken = default(CancellationToken)) => Task.FromResult(false);
 
         /// <summary>
         ///     Called when the document is being unloaded.
@@ -222,7 +226,7 @@ namespace DocFXAssistant.LanguageServer.Documents
         /// <returns>
         ///     A task representing the load operation.
         /// </returns>        
-        protected abstract Task OnUnload(CancellationToken cancellationToken = default(CancellationToken));
+        protected virtual Task OnUnload(CancellationToken cancellationToken = default(CancellationToken)) => Task.CompletedTask;
 
         /// <summary>
         ///     Remove all diagnostics for the document file.
