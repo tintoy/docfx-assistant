@@ -27,7 +27,7 @@
         "onLanguage:yaml",
         "onCommand:docfx.refreshTopicUIDs"
     ],
-    "main": "./out/src/extension",
+    "main": "./out/src/extension/extension",
     "contributes": {
         "configuration": {
             "properties": {
