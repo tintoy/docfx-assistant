@@ -8,6 +8,7 @@
         <PackageReference Include="JsonRpc" Version="1.0.0" />
         <PackageReference Include="LSP" Version="1.0.0" />
         <PackageReference Include="MarkDig" Version="0.13.1" />
+        <PackageReference Include="Microsoft.DocAsCode.Glob" Version="2.23.1" NoWarn="NU1701" />
         <PackageReference Include="Nito.AsyncEx.Tasks" Version="1.0.1" />
         <PackageReference Include="Nito.AsyncEx.Coordination" Version="1.0.1" />
         <PackageReference Include="Serilog" Version="2.5.0" />
