@@ -22,7 +22,7 @@ export async function getDocFXProjectFile(workspaceState: vscode.Memento, progre
             return cachedProjectFile;
         }
         
-        const files = await vscode.workspace.findFiles('**/docfx.json', '.git/**,**/node_modules/**', 1);
+        const files = await vscode.workspace.findFiles('**/docfx.json', '.git/**','**/node_modules/**', 1);
         if (!files.length) {
             if (!ignoreMissingProjectFile) {
                 progress.error(
