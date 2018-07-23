@@ -2,7 +2,7 @@
     "name": "docfx-assistant",
     "displayName": "DocFX Assistant",
     "description": "Tools to assist with authoring content using Microsoft DocFX.",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "publisher": "tintoy",
     "license": "MIT",
     "repository": {
@@ -59,6 +59,7 @@
         "@types/chokidar": "^1.7.1",
         "@types/glob": "^5.0.30",
         "@types/js-yaml": "^3.9.0",
+        "@types/mkdirp": "^0.5.2",
         "@types/mocha": "^2.2.32",
         "@types/mz": "0.0.31",
         "@types/node": "^6.0.40",
@@ -70,10 +71,11 @@
     },
     "dependencies": {
         "chokidar": "^1.7.0",
-        "docfx-project": "^0.1.2",
+        "docfx-project": "^0.1.4",
         "glob": "^7.1.2",
         "js-yaml": "^3.9.1",
         "minimatch": "^3.0.4",
+        "mkdirp": "^0.5.1",
         "mz": "^2.6.0",
         "rxjs": "^5.4.2",
         "yaml-front-matter": "^3.4.0"

@@ -1,5 +1,9 @@
 # Change Log
 
+## v0.1.5
+
+* Recursively create metadata cache directory if required (tintoy/docfx-assistant#10).
+
 ## v0.1.3
 
 * Complete move of DocFX project engine to `docfx-project` module on NPM.

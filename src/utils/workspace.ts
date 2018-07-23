@@ -43,7 +43,7 @@ export async function getDocFXProjectFile(workspaceState: vscode.Memento, progre
         progress.next('Caching DocFX project file...');
 
         const projectFile = files[0].fsPath;
-        await this.workspaceState.update(StateKeys.projectFile, projectFile);
+        await workspaceState.update(StateKeys.projectFile, projectFile);
 
         progress.next('DocFX project file cached.');
 
